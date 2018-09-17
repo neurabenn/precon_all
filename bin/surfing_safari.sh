@@ -1,3 +1,6 @@
+#!/bin/bash
+
+
 Usage() {
     echo " "
     echo "Preclinical Surface Reconstruction"
@@ -104,17 +107,17 @@ if [ ${steps} == "precon_all" ];then
 ${PCP_PATH}bin/denoise.sh -i ${brain}
 
 
-echo ${PCP_PATH}bin/N4_pig.sh -i sanlm_${brain} -x ${mask}
+${PCP_PATH}bin/N4_pig.sh -i sanlm_${brain} -x ${mask}
 
+${PCP_PATH}bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz}
 
-echo ${PCP_PATH}bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz}
- ${PCP_PATH}bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} 
+${PCP_PATH}bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} 
 
 
 cd ${dir}
 echo ${PCP_PATH}bin/tess_pig.sh -s ${ruta}  -h lh #-n 5 
  for hemi in lh rh;do 
- 	${PCP_PATH}bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
+ 	${PCP_PATH}bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -n 5
  done
 fi
 
@@ -129,7 +132,7 @@ if [ ${steps} == "precon_1" ];then
 fi
 
 
-########## pecon 2 steps ########### 
+########## precon 2 steps ########### 
 
 if [ ${steps} == "precon_2" ];then 
 
@@ -156,13 +159,13 @@ ${PCP_PATH}bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz}
 ${PCP_PATH}bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} 
 
 
-# cd ${dir}
-#  ${PCP_PATH}bin/tess_pig.sh -s ${ruta}  -h lh #-n 5 
-#  for hemi in lh rh;do 
-#  	echo${PCP_PATH}bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
-#  done
+cd ${dir}
+ ${PCP_PATH}bin/tess_pig.sh -s ${ruta}  -h lh #-n 5 
+ for hemi in lh rh;do 
+ 	${PCP_PATH}bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -n 5
+ done
 fi
-
+##### precon3 parameters. still need to add control checks to check for segmentation files. 
 if [ ${steps} == "precon_3" ];then
 	 brain_dir=${dir}${name/.nii.gz/}_brain/
 	brain=${name/.nii.gz/}_brain.nii.gz
@@ -170,7 +173,7 @@ if [ ${steps} == "precon_3" ];then
 	cd ${dir}
  	#echo ${PCP_PATH}bin/tess_pig.sh -s ${ruta}  -h lh #-n 5 
  for hemi in lh rh;do 
- 	 ${PCP_PATH}bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
+ 	 ${PCP_PATH}bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -n 5
  done
 fi
 

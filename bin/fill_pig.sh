@@ -12,7 +12,7 @@ Usage() {
     echo " Compulsory Arguments "
     echo "-i <Denoised_Brain_T1_0N4.nii.gz>                  : Image must include nii or nii.gz file extension "
   
-    echo "-x <binary brain mask>          : Typically a brain extraction mask"
+
     echo " "
     echo " Optional Arguments"  ###### potentially add option to discard intermediate files? 
     echo "Example:  `basename $0` -i Denoised_Brain_T1_0N4.nii.gz -x pig_binary_mask.nii.gz "
@@ -29,7 +29,7 @@ RED=$(echo -en '\033[00;31m') #Red for error messages
 
 ####variables to be filled via options
 img=""
-mask=""
+
 #### parse them options
 while getopts ":i:" opt ; do 
 	case $opt in
@@ -63,7 +63,7 @@ T1=$(basename ${img})
 cp ${T1} mri/brainmask.nii.gz 
 
  cd mri/ 
-
+if [ -f wm_orig.nii.gz ];then :; else  echo "Missing WM segmentation" `pwd`"/wm_orig.nii.gz";echo  "Pleas provide this required WM segmentation"; exit 1;fi
 #### normalization of volume for use in freesurfer
 upper=`fslstats brainmask -R | cut -d ' ' -f2-`
  echo "upper intensity value is " $upper 

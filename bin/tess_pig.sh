@@ -27,7 +27,7 @@ RED=$(echo -en '\033[00;31m') #Red for error messages
 ####variables to be filled via options
 subj=""
 hemi=""
-infl=7
+infla=7
 #### parse them options
 while getopts ":s:h:a:" opt ; do 
 	case $opt in
@@ -57,47 +57,59 @@ echo ${subj}
 echo ${hemi}
 echo ${infla}
 
-SUBJECTS_DIR=$(dirname ${subj})
- subj_full=${subj}/
- echo $subj_full
-  mri_dir=${subj_full}mri
+SUBJECTS_DIR=$(echo $(cd $(dirname "${subj}") && pwd -P))/
+ subj=$(basename ${subj})
+ echo $SUBJECTS_DIR
+ echo ${subj}
+   subj_full=${SUBJECTS_DIR}${subj}/
+  echo $subj_full
+   mri_dir=${subj_full}mri
    surf_dir=${subj_full}surf
 
-  cd ${mri_dir}
-   
-  mri_mask -T 5 brain.mgz brainmask.mgz brain.finalsurfs.mgz
+    cd ${mri_dir}
+  pwd 
+    mri_mask -T 5 brain.mgz brainmask.mgz brain.finalsurfs.mgz
 
-  cd $surf_dir
+     cd $surf_dir
+   pwd 
 
-  mri_tessellate ${mri_dir}/filled-pretess255.mgz 255 lh.orig.nofix
-  mri_tessellate ${mri_dir}/filled-pretess127.mgz 127 rh.orig.nofix
+ #### determine which hemisphere to reconstruct ####
 
-
-
+ if [ ${hemi} == "lh" ];then
+ echo "##### recon ${hemi} #####" 
+   mri_tessellate ${mri_dir}/filled-pretess255.mgz 255 lh.orig.nofix
+ fi
+ if [ ${hemi} == "rh" ];then
   echo "##### recon ${hemi} #####"
+   mri_tessellate ${mri_dir}/filled-pretess127.mgz 127 rh.orig.nofix
+ fi 
 
- mris_extract_main_component ${hemi}.orig.nofix ${hemi}.orig.nofix
 
- mris_smooth -nw ${hemi}.orig.nofix ${hemi}.smoothwm.nofix
 
- mris_inflate -n 15 -no-save-sulc ${hemi}.smoothwm.nofix ${hemi}.inflated.nofix
- mris_sphere -q -seed 1234 ${hemi}.inflated.nofix ${hemi}.qsphere.nofix
- cp ${hemi}.orig.nofix ${hemi}.orig
- cp ${hemi}.inflated.nofix ${hemi}.inflated
 
- cd $subj_full 
- mris_fix_topology -mgz -sphere qsphere.nofix -ga -seed 1234 ${subj} ${hemi}
- cd $surf_dir
- mris_euler_number ${hemi}.orig cd
- mris_remove_intersection ${hemi}.orig ${hemi}.orig
 
- cd $subj_full
+   mris_extract_main_component ${hemi}.orig.nofix ${hemi}.orig.nofix
+
+   mris_smooth -nw ${hemi}.orig.nofix ${hemi}.smoothwm.nofix
+
+   mris_inflate -n 15 -no-save-sulc ${hemi}.smoothwm.nofix ${hemi}.inflated.nofix
+   mris_sphere -q -seed 1234 ${hemi}.inflated.nofix ${hemi}.qsphere.nofix
+   cp ${hemi}.orig.nofix ${hemi}.orig
+   cp ${hemi}.inflated.nofix ${hemi}.inflated
+
+   cd ${SUBJECTS_DIR}
+  mris_fix_topology -mgz -sphere qsphere.nofix -ga -seed 1234 ${subj} ${hemi}
+  cd $surf_dir
+   mris_euler_number ${hemi}.orig cd
+  mris_remove_intersection ${hemi}.orig ${hemi}.orig
+
+  cd ${SUBJECTS_DIR}
  mris_make_surfaces -noaseg -noaparc -mgz -T1 brain.finalsurfs ${subj} ${hemi} 
 
  cd $surf_dir
  mris_smooth -n 3 -nw -seed 1234 ${hemi}.white ${hemi}.smoothwm
- mris_inflate  -dist .01 -f .001  -n ${infla}  ${hemi}.smoothwm ${hemi}.inflated 
- mris_curvature -thresh .999 -n -a 5 -w -distances 10 10 ${hemi}.inflated
+  mris_inflate  -dist .01 -f .001  -n ${infla}  ${hemi}.smoothwm ${hemi}.inflated 
+  mris_curvature -thresh .999 -n -a 5 -w -distances 10 10 ${hemi}.inflated
 
  cd $subj_full
  mris_curvature_stats -m --writeCurvatureFiles -G -o ${hemi}.curv.stats -F smoothwm ${subj} ${hemi} curv sulc
