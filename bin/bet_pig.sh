@@ -86,6 +86,8 @@ prob_mask=${PCP_PATH}standards/extraction/brain_mask.nii.gz ######probablistic e
 reg_mask=${PCP_PATH}standards/extraction/reg_mask.nii.gz ######### full body registration mask
 
 if [ "${denoise}" == "y" ];then
+
+	if [[ ${CAT12_PATH} != "" ]];then
 	cp ${PCP_PATH}/mat_files/denoise_temp.m ${out}/denoise_sanlm_body.m
 	cd ${out}
 	ruta=`pwd` ### define absolute pathto current directory
@@ -106,6 +108,10 @@ if [ "${denoise}" == "y" ];then
    	sed -i -e  "s+'<UNDEFINED>'+{'${sub},1'}+g" denoise_sanlm_body.m 
    	################ denoising input image #################
    	sh ${CAT12_PATH}cat_batch_spm_fg.sh denoise_sanlm_body.m 
+   else
+   	echo "CAT12_PATH does not exist. Using Ants denoising algorithm"
+   	${ANTSPATH}/DenoiseImage -d 3 -i ${img} -o sanlm_${img}
+   fi
 
 	###### prepare extraction variables ########### 
 T1=sanlm_${T1}
@@ -158,5 +164,3 @@ brain=${T1/.nii.gz/_brain.nii.gz}
 mv ${prefix}BrainExtractionMask.nii.gz ${T1/.nii.gz/_brain_mask.nii.gz}
 
 fi
-
-
