@@ -73,7 +73,12 @@ if [ "${img: -4}" == ".nii" ];then gzip ${img}; img=${img/.nii/.nii.gz};fi
 echo ${ruta}
 T1=$(basename $img)
 
-if [[ ${CAT12_PATH} != "" ]];then
+if [[ ${CAT12_PATH} == ""  ]];then
+
+echo "Using ANTS to denoise image"
+    ${ANTSPATH}DenoiseImage -d 3 -i ${T1} -o sanlm_${T1} -v 1
+
+else	
   gunzip $T1
    T1=${T1/.gz/}
    echo $T1
@@ -112,9 +117,7 @@ if [[ ${CAT12_PATH} != "" ]];then
 		echo rm ${sub_new} 
 		gzip ${sub}
  fi
-else 
-	echo "Using ANTS to denoise image"
-    ${ANTSPATH}DenoiseImage -d 3 -i ${T1} -o sanlm_${T1}
+	
 fi
 
 
