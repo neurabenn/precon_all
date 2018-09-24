@@ -117,7 +117,7 @@ ${PCP_PATH}bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz}
 cd ${dir}
 echo ${PCP_PATH}bin/tess_pig.sh -s ${ruta}  -h lh #-n 5 
  for hemi in lh rh;do 
- 	${PCP_PATH}bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
+ ${PCP_PATH}bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
  done
 fi
 
@@ -174,7 +174,7 @@ if [ ${steps} == "precon_3" ];then
 
 	${PCP_PATH}bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} 
 	cd ${dir}
- 	echo ${PCP_PATH}bin/tess_pig.sh -s ${ruta}  -h lh #-n 5 
+ 	${PCP_PATH}bin/tess_pig.sh -s ${ruta}  -h lh #-n 5 
  for hemi in lh rh;do 
  	 ${PCP_PATH}bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
  done
