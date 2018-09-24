@@ -109,8 +109,10 @@ if [ "${denoise}" == "y" ];then
    	################ denoising input image #################
    	sh ${CAT12_PATH}cat_batch_spm_fg.sh denoise_sanlm_body.m 
    else
+   	T1=$(basename ${img})
    	echo "CAT12_PATH does not exist. Using Ants denoising algorithm"
-   	${ANTSPATH}/DenoiseImage -d 3 -i ${img} -o sanlm_${img}
+   	cd ${out}
+   	${ANTSPATH}/DenoiseImage -d 3 -i ${T1} -o sanlm_${T1} -v 1
    fi
 
 	###### prepare extraction variables ########### 
@@ -125,11 +127,13 @@ pwd
 	 	echo $T1
 	else
  		echo ${anat} "is alread zipped. Ready for extraction."
- 		T1=${anat}
+ 		T1=${T1}
  	fi
 
- ###extract the brain. $ANTSPATH must be defined	
- ${ANTSPATH}antsBrainExtraction.sh -d 3 -a ${T1}  -e ${temp}  -m ${prob_mask} -o  ${prefix} -f $reg_mask
+ 
+###extract the brain. $ANTSPATH must be defined	
+pwd
+${ANTSPATH}antsBrainExtraction.sh -d 3 -a ${T1}  -e ${temp}  -m ${prob_mask} -o  ${prefix} -f $reg_mask
 
 #rename output to ${file}_brain / ${file}_brain_mask
 mv ${prefix}BrainExtractionBrain.nii.gz ${T1/.nii.gz/_brain.nii.gz}
