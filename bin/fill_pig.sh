@@ -64,27 +64,7 @@ cp ${T1} mri/brainmask.nii.gz
 
  cd mri/ 
 if [ -f wm_orig.nii.gz ];then :; else  echo "Missing WM segmentation" `pwd`"/wm_orig.nii.gz";echo  "Pleas provide this required WM segmentation"; exit 1;fi
-#### normalization of volume for use in freesurfer
-upper=`fslstats brainmask -R | cut -d ' ' -f2-`
- echo "upper intensity value is " $upper 
 
- echo "############normalizing intensity values #########"
-
-
-
- fslmaths brainmask -div $upper -mul 150 nu -odt int
-
- fslmaths nu -mas wm_orig nu_wm
-
- fslmaths wm_orig -mul 110 wm_110
-
- fslmaths nu -sub nu_wm -add wm_110 brain -odt int
-
- cp brain.nii.gz brainmask.nii.gz
-
- echo "############# creating WM images for tesselation ###########"
-
- ### create WM image with sub_c intensity differences #####
 
  anat=`pwd`
  anat=${anat/mri/}$T1
@@ -107,11 +87,38 @@ lta_convert --infsl std2str.mat --outmni transforms/talairach.xfm --src ${anat} 
  flirt -in ${PCP_PATH}standards/fill/left_hem -ref ${anat}  -applyxfm -init std2str.mat -out left_hem -interp nearestneighbour
   flirt -in ${PCP_PATH}standards/fill/right_hem -ref ${anat}  -applyxfm -init std2str.mat -out right_hem -interp nearestneighbour
 
+#### normalization of volume for use in freesurfer
+upper=`fslstats brainmask -R | cut -d ' ' -f2-`
+ echo "upper intensity value is " $upper 
+
+ echo "############normalizing intensity values #########"
+
+
+
+ fslmaths brainmask -div $upper -mul 150 nu -odt int
+
+ fslmaths nu -mas wm_orig nu_wm
+
+ fslmaths wm_orig -add sub_cort_str -bin wm+SC
+
+
+ fslmaths wm_orig -mul 110 wm_110
+
+ fslmaths wm+SC -mul 110 wm_110+SC
+
+ #fslmaths nu -sub nu_wm -add wm_110 brain -odt int
+ fslmaths nu -sub nu_wm -add wm_110+SC brain -odt int
+ fslmaths nu -sub wm+SC -add wm_110+SC brainmask -odt int
+# cp brain.nii.gz brainmask.nii.gz
+
+ echo "############# creating WM images for tesselation ###########"
+
+ ### create WM image with sub_c intensity differences #####
+
  echo "######### filling WM ########"
  fslmaths wm_orig -sub sub_cort_str wm_nosubc
  fslmaths wm_nosubc -mul 110 wm_nosubc 
- #fslmaths sub_cort_str -mul 250 -add wm_nosubc wm ### separate commit made
- fslmaths wm_orig -add sub_cort_str -bin  wm 
+ fslmaths sub_cort_str -mul 250 -add wm_nosubc wm
  fslmaths wm_orig -add sub_cort_str -sub non_cort_str -thr 0 -bin  wm_pre_fill
  fslmaths wm_pre_fill -fillh wm_pre_fill
 
@@ -120,7 +127,7 @@ lta_convert --infsl std2str.mat --outmni transforms/talairach.xfm --src ${anat} 
  fslmaths wm_left -add wm_right filled
 
  mri_convert brain.nii.gz  brain.mgz
- mri_convert brain.nii.gz  brainmask.mgz
+ mri_convert brainmask.nii.gz  brainmask.mgz
  mri_convert brain.nii.gz  brain.finalsurfs.mgz
  mri_convert brain.nii.gz  T1.mgz
  mri_convert brain.nii.gz  nu.mgz
