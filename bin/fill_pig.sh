@@ -110,7 +110,8 @@ lta_convert --infsl std2str.mat --outmni transforms/talairach.xfm --src ${anat} 
  echo "######### filling WM ########"
  fslmaths wm_orig -sub sub_cort_str wm_nosubc
  fslmaths wm_nosubc -mul 110 wm_nosubc 
- fslmaths sub_cort_str -mul 250 -add wm_nosubc wm
+ #fslmaths sub_cort_str -mul 250 -add wm_nosubc wm ### separate commit made
+ fslmaths wm_orig -add sub_cort_str -bin  wm 
  fslmaths wm_orig -add sub_cort_str -sub non_cort_str -thr 0 -bin  wm_pre_fill
  fslmaths wm_pre_fill -fillh wm_pre_fill
 
