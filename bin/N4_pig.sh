@@ -110,18 +110,17 @@ echo ${mask}
  T1=${img/.nii.gz/}_0N4.nii.gz
 echo ${T1}
 # reregister your brain mask to the brain to be safe in the N4 call
-flirt -in ${mask} -ref ${T1} -interp nearestneighbour -out ${mask} 
 #  Perform Bias field correction
 if [[ ${shrink} == "" ]];then
 
-	 echo ${ANTSPATH}N4BiasFieldCorrection -d 3 -i $T1 -x $mask  -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 1 
-	 ${ANTSPATH}N4BiasFieldCorrection -d 3 -i $T1 -x $mask  -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 1 
+	 echo ${ANTSPATH}N4BiasFieldCorrection -d 3 -i $T1 -x $mask  -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 0
+	 ${ANTSPATH}N4BiasFieldCorrection -d 3 -i $T1   -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 0 
 	 fslmaths ${T1} -mas ${mask} ${T1}
 	
 else
 
-	echo ${ANTSPATH}N4BiasFieldCorrection -d 3 -i $T1 -x $mask  -s ${shrink}  -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 1
-	${ANTSPATH}N4BiasFieldCorrection -d 3 -i $T1 -x $mask  -s ${shrink}  -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 1  
+	echo ${ANTSPATH}N4BiasFieldCorrection -d 3 -i $T1 -x $mask  -s ${shrink}  -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 0
+	${ANTSPATH}N4BiasFieldCorrection -d 3 -i $T1   -s ${shrink}  -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 0 
 	fslmaths ${T1} -mas ${mask} ${T1}
  fi
 

@@ -86,32 +86,6 @@ prob_mask=${PCP_PATH}standards/extraction/brain_mask.nii.gz ######probablistic e
 reg_mask=${PCP_PATH}standards/extraction/reg_mask.nii.gz ######### full body registration mask
 
 if [ "${denoise}" == "y" ];then
-
-	if [[ ${CAT12_PATH} != "" ]];then
-	cp ${PCP_PATH}/mat_files/denoise_temp.m ${out}/denoise_sanlm_body.m
-	cd ${out}
-	ruta=`pwd` ### define absolute pathto current directory
-
-	T1=$(basename ${img})
-
-	 if [ "${T1: -3}" == ".gz" ];then ##### prepare file for cat12 denoising
- 	#echo "unzipping" ${T1}
- 		gunzip ${T1}
-
- 	 	T1=${T1/.gz/}
- 	else
- 		echo ${anat} "is alread unzipped. Ready for denoising. "
- 	 	T1=${T1}
- 	fi
- 	sub=${ruta}/${T1}
-  	 echo "denoising " $sub
-   	sed -i -e  "s+'<UNDEFINED>'+{'${sub},1'}+g" denoise_sanlm_body.m 
-   	################ denoising input image #################
-   	sh ${CAT12_PATH}cat_batch_spm_fg.sh denoise_sanlm_body.m 
-   else
-   	T1=$(basename ${img})
-   	echo "CAT12_PATH does not exist. Using Ants denoising algorithm"
-   	cd ${out}
    	${ANTSPATH}/DenoiseImage -d 3 -i ${T1} -o sanlm_${T1} -v 1
    fi
 
@@ -133,7 +107,7 @@ pwd
  
 ###extract the brain. $ANTSPATH must be defined	
 pwd
-${ANTSPATH}antsBrainExtraction.sh -d 3 -a ${T1}  -e ${temp}  -m ${prob_mask} -o  ${prefix} -f $reg_mask
+${ANTSPATH}antsBrainExtraction.sh -d 3 -a ${T1}  -e ${temp}  -m ${prob_mask} -o  ${prefix} -f $reg_mask -k
 
 #rename output to ${file}_brain / ${file}_brain_mask
 mv ${prefix}BrainExtractionBrain.nii.gz ${T1/.nii.gz/_brain.nii.gz}

@@ -94,50 +94,86 @@ temp=${PCP_PATH}/standards/${animal}/extraction/${animal}_temp.nii.gz ##########
 prob_mask=${PCP_PATH}/standards/${animal}/extraction/brain_mask.nii.gz ######probablistic extraction mask. If you don't have one you can make one via smoothing a prior brain extraction binary mask
 reg_mask=${PCP_PATH}/standards/${animal}/extraction/reg_mask.nii.gz ######### full body registration mask
 
+
 if [ ${out} = "" ];then out=`pwd`;fi
 
 if [ ! -d ${out} ];then mkdir -p ${out};fi 
 
 
+
+
+echo "############## USING FNIRT NOT ANTS NOW!!!!!!!! ##############"
 T1=$(basename ${img})
-
-echo ${T1}
-echo ${out}
-#  ### if requested denoise input image
-
-
- if [ "${denoise}" == "y" ];then
-
- 	${ANTSPATH}DenoiseImage -d 3 -i ${T1} -o ${out}/sanlm_${T1} -v 1
-	T1=sanlm_${T1}
-# 	###### prepare extraction variables ########### 
-
-# pwd 
-fi
-echo ${T1}
-
 cd ${out}
-pwd
- 
-###extract the brain. $ANTSPATH must be defined	
-# pwd
-${ANTSPATH}antsBrainExtraction.sh -d 3 -a ${T1}  -e ${temp}  -m ${prob_mask} -o  ${out}/${prefix}/${prefix} -f $reg_mask -k 1
-# pwd
-# #rename output to ${file}_brain / ${file}_brain_mask
-if [ "${denoise}" == "y" ];then
-	T1=${T1/sanlm_/}
-	mv ${prefix}/${prefix}BrainExtractionBrain.nii.gz ${T1/.nii.gz/_brain.nii.gz}
-	mv ${prefix}/${prefix}BrainExtractionMask.nii.gz ${T1/.nii.gz/_brain_mask.nii.gz}
-else
-	T1=${T1}
-	mv ${prefix}/${prefix}BrainExtractionBrain.nii.gz ${T1/.nii.gz/_brain.nii.gz}
-	mv ${prefix}/${prefix}BrainExtractionMask.nii.gz ${T1/.nii.gz/_brain_mask.nii.gz}
-fi
-
 mkdir -p mri/transforms
-mv ${prefix}/${prefix}BrainExtractionPrior0GenericAffine.mat mri/transforms/ANTSitkGeneric.mat
-mv ${prefix}/${prefix}BrainExtractionPrior0GenericAffine.mat mri/transforms/ANTSitkGeneric.mat
-mv ${prefix}/${prefix}BrainExtractionPrior1InverseWarp.nii.gz mri/transforms/ANTSitkInverseWARP.nii.gz
+
+echo ${T1}
+
+
+${ANTSPATH}N4BiasFieldCorrection -d 3 -i ${T1}  -c [100x100x100x100,0.0000000001] -b [200] -o ${T1} --verbose 0
+$ANTSPATH/DenoiseImage -d 3 -i ${T1} -o sanlm_${T1}
+$ANTSPATH/ImageMath  3 sanlm_${T1} TruncateImageIntensity sanlm_${T1} 0.05 0.999 
+
+$FSLDIR/bin/flirt -in sanlm_${T1} -ref ${temp} -dof 12  -omat mri/transforms/init.mat -searchrx -180 180 -searchry -180 180 -searchrz -180 180 -out str_2std_linear
+$FSLDIR/bin/fnirt --in=sanlm_${T1} --ref=${temp} --aff=mri/transforms/init.mat --cout=mri/transforms/str2std_warp
+$FSLDIR/bin/invwarp --warp=mri/transforms/str2std_warp --ref=sanlm_${T1} --out=mri/transforms/std2str_warp
+$FSLDIR/bin/applywarp --in=${prob_mask} --ref=sanlm_${T1}  --interp=nn --warp=mri/transforms/std2str_warp --out=${T1/.nii.gz/_brain_mask}
+$FSLDIR/bin/fslmaths sanlm_${T1} -mas ${T1/.nii.gz/_brain_mask}  ${T1/.nii.gz/_brain}
+
+
+echo " End brain extraction "
+
+
+
+# outbrain=${out}/(basename ${img})
+# echo ${outbrain}
+
+# $FSLDIR/bin/fslmaths ${out}/sanlm_$(basename ${img}) -mas ${out}/brain_mask  ${outbrain/.nii.gz/_brain} 
+
+
+
+
+
+
+# T1=$(basename ${img})
+
+# echo ${T1}
+# echo ${out}
+# #  ### if requested denoise input image
+
+
+#  if [ "${denoise}" == "y" ];then
+
+#  	${ANTSPATH}DenoiseImage -d 3 -i ${T1} -o ${out}/sanlm_${T1} -v 1
+# 	T1=sanlm_${T1}
+# # 	###### prepare extraction variables ########### 
+
+# # pwd 
+# fi
+# echo ${T1}
+
+# cd ${out}
+# pwd
+ 
+# ###extract the brain. $ANTSPATH must be defined	
+# # pwd
+# ${ANTSPATH}antsBrainExtraction.sh -d 3 -a ${T1}  -e ${temp}  -m ${prob_mask} -o  ${out}/${prefix}/${prefix} -f $reg_mask -k 1
+# # pwd
+# # #rename output to ${file}_brain / ${file}_brain_mask
+# if [ "${denoise}" == "y" ];then
+# 	T1=${T1/sanlm_/}
+# 	mv ${prefix}/${prefix}BrainExtractionBrain.nii.gz ${T1/.nii.gz/_brain.nii.gz}
+# 	mv ${prefix}/${prefix}BrainExtractionMask.nii.gz ${T1/.nii.gz/_brain_mask.nii.gz}
+# else
+# 	T1=${T1}
+# 	mv ${prefix}/${prefix}BrainExtractionBrain.nii.gz ${T1/.nii.gz/_brain.nii.gz}
+# 	mv ${prefix}/${prefix}BrainExtractionMask.nii.gz ${T1/.nii.gz/_brain_mask.nii.gz}
+# fi
+
+
+# mv ${prefix}/${prefix}BrainExtractionPrior0GenericAffine.mat mri/transforms/ANTSitkGeneric.mat
+# mv ${prefix}/${prefix}BrainExtractionPrior0GenericAffine.mat mri/transforms/ANTSitkGeneric.mat
+# mv ${prefix}/${prefix}BrainExtractionPrior1InverseWarp.nii.gz mri/transforms/ANTSitkInverseWARP.nii.gz
 
 
 

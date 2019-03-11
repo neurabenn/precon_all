@@ -27,7 +27,7 @@ RED=$(echo -en '\033[00;31m') #Red for error messages
 ####variables to be filled via options
 subj=""
 hemi=""
-infla=7
+infla=3
 #### parse them options
 while getopts ":s:h:a:" opt ; do 
 	case $opt in
@@ -92,7 +92,7 @@ SUBJECTS_DIR=$(echo $(cd $(dirname "${subj}") && pwd -P))/
 
    mris_smooth -nw ${hemi}.orig.nofix ${hemi}.smoothwm.nofix
 
-   mris_inflate -n 15 -no-save-sulc ${hemi}.smoothwm.nofix ${hemi}.inflated.nofix
+   mris_inflate -n 125 -no-save-sulc ${hemi}.smoothwm.nofix ${hemi}.inflated.nofix
    mris_sphere -q -seed 1234 ${hemi}.inflated.nofix ${hemi}.qsphere.nofix
    cp ${hemi}.orig.nofix ${hemi}.orig
    cp ${hemi}.inflated.nofix ${hemi}.inflated
@@ -117,5 +117,14 @@ SUBJECTS_DIR=$(echo $(cd $(dirname "${subj}") && pwd -P))/
 
  cd $surf_dir
  mris_sphere ${hemi}.inflated ${hemi}.sphere
+
+ #### calculate volume and mid thickness
+ mris_calc -o ${hemi}.area.mid ${hemi}.area add ${hemi}.area.pial
+ mris_calc -o ${hemi}.area.mid ${hemi}.area.mid div 2
+ mris_calc -o ${hemi}.volume ${hemi}.area.mid mul ${hemi}.thickness
+
+
+
+
 
 

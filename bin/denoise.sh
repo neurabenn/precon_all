@@ -73,51 +73,9 @@ if [ "${img: -4}" == ".nii" ];then gzip ${img}; img=${img/.nii/.nii.gz};fi
 echo ${ruta}
 T1=$(basename $img)
 
-if [[ ${CAT12_PATH} == ""  ]];then
 
 echo "Using ANTS to denoise image"
-    ${ANTSPATH}DenoiseImage -d 3 -i ${T1} -o sanlm_${T1} -v 1
+${ANTSPATH}DenoiseImage -d 3 -i ${T1} -o sanlm_${T1} -v 1
 
-else	
-  gunzip $T1
-   T1=${T1/.gz/}
-   echo $T1
-
-
-   #### CAT12 is an SPM toolbox . MATLAB does not allow for varibale to start with digits check and temporarily rename the file for the purposes of denoising.
-   first_char=`echo ${T1} | head -c 1`
-
-
-
-	if [[ $first_char == [a-z] ]] || [[ $first_char == [A-Z] ]] ;then 
-   		sub=${ruta}${T1}
-		echo ${sub}
-		name=$(basename ${img})
-		name=${name/.nii/}
-		cp ${PCP_PATH}mat_files/denoise_temp.m ${out}/${name/brain/}_denoise_sanlm.m 
- 		echo "denoising " $sub
-  		sed -i -e  "s+'<UNDEFINED>'+{'${sub},1'}+g" ${name/brain/}_denoise_sanlm.m 
- 		sh ${CAT12_PATH}cat_batch_spm_fg.sh ${name/brain/}_denoise_sanlm.m 
- 		gzip ${sub} ### reszip non denoised image
-		gzip sanlm_${T1} 
- 	else 
- 		echo ${first_char} "Is a number. creating a temporary name for the file to be denoised"
-		sub=${ruta}${T1}
-		cp ${sub} ${ruta}tmp${T1}
-		sub_new=${ruta}tmp${T1}
-		echo ${sub_new}
-		name=$(basename ${sub_new})
-		name=${name/.nii/}
-		cp ${PCP_PATH}mat_files/denoise_temp.m ${out}/${name/brain/}_denoise_sanlm.m 
- 		echo "denoising " $sub_new
- 		sed -i -e  "s+'<UNDEFINED>'+{'${sub_new},1'}+g" ${name/brain/}_denoise_sanlm.m 
- 		sh ${CAT12_PATH}cat_batch_spm_fg.sh ${name/brain/}_denoise_sanlm.m
- 		mv ${ruta}sanlm_tmp${T1} ${ruta}sanlm_${T1} ### return back to expected format of naming convention
-		gzip ${ruta}sanlm_${T1}
-		echo rm ${sub_new} 
-		gzip ${sub}
- fi
-	
-fi
 
 
