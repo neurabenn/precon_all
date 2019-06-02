@@ -29,15 +29,23 @@ $PCP_PATH/standards/<your_animal>/extraction
     
 You'll also need a a folder titles $PCP_PATH/standards/<your_animal>/fill
   The fill folder contains:
+  
     A left and right hemisphere mask named: left_hem.nii.gz right_hem.nii.gz
+    
     A subcortical structure mask named: sub_cort.nii.gz 
+    
     A brain stem and cerebellar mask named: non_cort.nii.gz 
+    
 Finally you have the option to make a segmentation priors folder titled: $PCP_PATH/standards/<your_animal>/seg_priors
+  
   This folder enables the use of tissue priors in the segmentation. We recommend using them if possible
+  
   The seg_priors folder contains:
+    
     csf.nii.gz
+    
     gm.nii.gz
-    wm.nii.gz
+   
+   wm.nii.gz
 
-Stay tuned for updates. 
-We'll soon release a manual including how to generate each of the required inputs for your animal
+Stay tuned for updates. We'll soon release a manual including how to generate each of the required inputs for your animal
