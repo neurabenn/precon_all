@@ -46,6 +46,6 @@ Finally you have the option to make a segmentation priors folder titled: $PCP_PA
     
     gm.nii.gz
    
-   wm.nii.gz
+    wm.nii.gz
 
 Stay tuned for updates. We'll soon release a manual including how to generate each of the required inputs for your animal
