@@ -21,11 +21,13 @@ $PCP_PATH/standards/<your_animal>/extraction
 
   The extraction folder contains:
   
-    A whole head T1 template named: <your_animal>_temp.nii.gz  (The pipeline has only been tested for population templates. Single subject templates could also work in theory)
-    
+    A whole head T1 template named: <your_animal>_temp.nii.gz 
     A brain mask aptly named: brain_mask.nii.gz 
     
     A brain extracted T1 template named: <animal>_brain.nii.gz
+    
+    (The pipeline has only been tested for population templates. Single subject templates could also work in theory)
+    
     
 You'll also need a a folder titles $PCP_PATH/standards/<your_animal>/fill
   
