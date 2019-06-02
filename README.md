@@ -28,6 +28,7 @@ $PCP_PATH/standards/<your_animal>/extraction
     A brain extracted T1 template named: <animal>_brain.nii.gz
     
 You'll also need a a folder titles $PCP_PATH/standards/<your_animal>/fill
+  
   The fill folder contains:
   
     A left and right hemisphere mask named: left_hem.nii.gz right_hem.nii.gz
