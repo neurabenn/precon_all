@@ -10,14 +10,23 @@ In order to run the pipeline simply type in the terminal surfing_safari.sh -i <m
 
 In order to customize the pipeline you'll need to create a new directory for each new animal you wish to run the pipeline in.
 The current example is $PCP_PATH/standards/pig
+
 To add an animal simply mkdir $PCP_PATH/standards/<your_animal>
+
 Once inside the $PCP_PATH/standards/<your_animal> you will need several key images and folders. 
+
 Specifically you'll need the following folders:
+
 $PCP_PATH/standards/<your_animal>/extraction
+
   The extraction folder contains:
+  
     A whole head T1 template named: <your_animal>_temp.nii.gz  (The pipeline has only been tested for population templates. Single subject templates could also work in theory)
+    
     A brain mask aptly named: brain_mask.nii.gz 
+    
     A brain extracted T1 template named: <animal>_brain.nii.gz
+    
 You'll also need a a folder titles $PCP_PATH/standards/<your_animal>/fill
   The fill folder contains:
     A left and right hemisphere mask named: left_hem.nii.gz right_hem.nii.gz
