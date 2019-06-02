@@ -52,3 +52,5 @@ Finally you have the option to make a segmentation priors folder titled: $PCP_PA
     wm.nii.gz
 
 Stay tuned for updates. We'll soon release a manual including how to generate each of the required inputs for your animal
+
+Here's the full poster explaining the pipeline: https://github.com/recoveringyank/precon_all/files/3244686/ohbm_2019RAB.pdf
