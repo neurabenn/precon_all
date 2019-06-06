@@ -53,4 +53,4 @@ Finally you have the option to make a segmentation priors folder titled: $PCP_PA
 
 Stay tuned for updates. We'll soon release a manual including how to generate each of the required inputs for your animal
 
-Here's the full poster explaining the pipeline: https://github.com/recoveringyank/precon_all/files/3244686/ohbm_2019RAB.pdf
+Here's the full poster explaining the pipeline: https://user-images.githubusercontent.com/9336717/59021392-fd978080-884b-11e9-8cf1-cb21b08e776b.jpg
