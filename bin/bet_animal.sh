@@ -11,6 +11,7 @@ Usage() {
     echo " -p <prefix>  	                : Output prefix. Default output is T1_image_brain.  " 
     echo " -o <output_directory>          : Output directory. Default is directory of input image"
     echo " -d <y/n>                       : Enable or disbale denoising. Default is to denoise prior to brain extraction "
+    echo " -m <y/n>                       : do you have a predefined initial  "
     echo " "
     echo "Example:  `basename $0` [options] -i pig_T1.nii.gz -p extract -o pig_brain_dir -d y  "
     echo " If using in conjunction with the Quadroped surface reconstruction pipeline follow the reccomended directory structure. \
@@ -34,11 +35,12 @@ img=""
 prefix=""
 out=""
 denoise=""
+premat=""
 
 
 #### define options for running script
 
-while getopts ":i:a:p:o:d:" opt ; do 
+while getopts ":i:a:p:o:d:m:" opt ; do 
 	case $opt in
 		i) 
 			i=1;
@@ -66,6 +68,10 @@ while getopts ":i:a:p:o:d:" opt ; do
 		d) >&2
 			denoise=`echo $OPTARG`
 			if [ "${denoise}" == "y" ] || [ "${denoise}" == "n" ] ;then : ; else Usage; exit 1 ;fi
+			;;
+		m) >&2
+			premat=`echo $OPTARG`
+			if [ "${premat}" != "" ];then echo "a pre_extraction matrix has been specified";fi
 			;;
 
 		\?)
@@ -114,8 +120,14 @@ ${ANTSPATH}N4BiasFieldCorrection -d 3 -i ${T1}  -c [100x100x100x100,0.0000000001
 $ANTSPATH/DenoiseImage -d 3 -i ${T1} -o sanlm_${T1}
 $ANTSPATH/ImageMath  3 sanlm_${T1} TruncateImageIntensity sanlm_${T1} 0.05 0.999 
 
-$FSLDIR/bin/flirt -in sanlm_${T1} -ref ${temp} -dof 12  -omat mri/transforms/init.mat -searchrx -180 180 -searchry -180 180 -searchrz -180 180 -out str_2std_linear
-$FSLDIR/bin/fnirt --in=sanlm_${T1} --ref=${temp} --aff=mri/transforms/init.mat --cout=mri/transforms/str2std_warp
+if [ ${premat} == "" ];then
+	$FSLDIR/bin/flirt -in sanlm_${T1} -ref ${temp} -dof 12  -omat mri/transforms/init.mat -searchrx -180 180 -searchry -180 180 -searchrz -180 180 -out str_2std_linear
+	$FSLDIR/bin/fnirt --in=sanlm_${T1} --ref=${temp}  --cout=mri/transforms/str2std_warp #--aff=mri/transforms/init.mat
+else
+	echo "using pre_extract.mat as initial transform"
+	$FSLDIR/bin/fnirt --in=sanlm_${T1} --ref=${temp}  --cout=mri/transforms/str2std_warp --aff=${premat} -v
+fi
+
 $FSLDIR/bin/invwarp --warp=mri/transforms/str2std_warp --ref=sanlm_${T1} --out=mri/transforms/std2str_warp
 $FSLDIR/bin/applywarp --in=${prob_mask} --ref=sanlm_${T1}  --interp=nn --warp=mri/transforms/std2str_warp --out=${T1/.nii.gz/_brain_mask}
 $FSLDIR/bin/fslmaths sanlm_${T1} -mas ${T1/.nii.gz/_brain_mask}  ${T1/.nii.gz/_brain}

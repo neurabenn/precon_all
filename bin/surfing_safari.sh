@@ -8,7 +8,7 @@ Usage() {
     echo "Usage: `basename $0` [options] -i <T1.nii.gz> -r <processes to run>"
     echo ""
     echo "Compulsory Arguments "
-    echo "-s <Subject directory>		: Directory containing preprocessed animal for surfac generation "
+    echo "-i <T1 image>		: Directory containing preprocessed animal for surfac generation "
   
     echo "-r < precon_all>		: hemisphere designationof lh or rh of surfaces to generate" 
     echo ""
@@ -107,10 +107,17 @@ echo "this is right. your on the surf_repo. have fun editing."
 mkdir -p ${dir}${name/.nii.gz/}
 brain_dir=${dir}${name/.nii.gz/}
 
+
+
 echo ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
+##### check for a preliminary alignment matrix first prior to running. sometimes this is necessary for difficult brains. 
+if [ -f ${dir}/pre_extract.mat ];then
+    echo " this brain uses a prior linear registraton of pre_extract.mat as an initial starting point for brain extraction"
+    ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y -m  ${dir}/pre_extract.mat
+else
+    ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
+fi
 
-
- ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
 echo " "
 echo "extraction already run. now play with the rest"
 
@@ -161,9 +168,15 @@ echo ${PCP_PATH}bin/tess_pig.sh -s ${ruta}  -h lh #-n 5
 # ############# precon 1 conditions 
 
 if [ ${steps} == "precon_1" ];then 
+    
 cp ${img} ${img/.nii.gz/orig.nii.gz}  
 # echo ${PCP_PATH}bin/bet_pig.sh -i ${img} -o ${name/.nii.gz/}_brain
- ${PCP_PATH}bin/bet_animal.sh -i ${img} -o ${name/.nii.gz/}_brain
+if [ -f ${dir}/pre_extract.mat ];then
+    echo " this brain uses a prior linear registraton of pre_extract.mat as an initial starting point for brain extraction"
+    ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y -m  ${dir}/pre_extract.mat
+else
+    ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
+fi
 
  brain_dir=${dir}${name/.nii.gz/}_brain
 
