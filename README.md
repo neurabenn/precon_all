@@ -4,6 +4,8 @@ precon_all surface pipline
 precon_all is an animal surface generation pipeline that can be easily adapted to work with multiple species. 
 The curent example we'l use is the pig as it's what the pipeline has been used for the most. 
 
+For comments and questions email *rabbenn@cnic.es*
+
 First clone the directory into wherever you'd like. Add a path variable pointing to the directory called $PCP_PATH
 
 In order to run the pipeline simply type in the terminal surfing_safari.sh -i <my_T1.nii.gz> -r precon_all
