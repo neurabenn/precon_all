@@ -13,6 +13,7 @@ Usage() {
     echo "-r < precon_all>		: hemisphere designationof lh or rh of surfaces to generate" 
     echo ""
     echo "-a <animal model> must be should be the name of a folder in the $PCP_PATH/standards/directory. Ex. $PCP_PATH/standards/pig" 
+    echo " -t < Segmentation threshold default is 0.5 >"
     echo "Optional Arguments" 
     echo "-h     help "
     echo " "
@@ -38,7 +39,7 @@ steps=""
 animal=""
 help=""
 
-while getopts ":i:r:a:h" opt ; do 
+while getopts ":i:r:a:t:h" opt ; do 
 	case $opt in
 		i) i=1;
 			img=`echo $OPTARG`
@@ -56,6 +57,9 @@ while getopts ":i:r:a:h" opt ; do
 			steps=`echo $OPTARG`
 			if [ ${h} -lt 1 ];then : ; else: echo " ${RED} insert help text here ${NC}"; exit 1;fi #### work on this later. not top priority this minute
 			;;	
+    t)  
+            thresh=`echo $OPTARG`
+                ;;
 		\?)
 		  echo "Invalid option:  -$OPTARG" 
 
@@ -73,6 +77,11 @@ if [[ ${r} -lt 1 ]];then echo "${RED}\n-r is a compulsory Argument${NC}" ; Usage
 if [ ! -f ${img} ];then echo " "; echo " ${RED}CHECK INPUT FILE PATH ${NC}"; Usage; exit 1;fi ### check input file exists
 if [ "${img: -4}" == ".nii" ] || [ "${img: -7}" == ".nii.gz" ] ;then : ; else Usage; exit 1 ;fi ### check format of image is nifti
 # echo "img"
+if [[ ${thresh} == "" ]];then 
+    thresh=0.5
+else
+ :
+fi
 
 # echo ${steps}
 name=$(basename ${img})
@@ -139,7 +148,7 @@ ls ${brain_dir}
 echo ${PCP_PATH}/bin/N4_pig.sh -i sanlm_${brain} -x ${mask}
 ${ANTSPATH}N4BiasFieldCorrection -d 3 -i sanlm_${brain}   -c [100x100x100x100,0.0000000001] -b [200] -o sanlm_${brain/.nii.gz/_0N4.nii.gz}  --verbose 0 
 
-${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal}
+${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh}
 
 #### conform outputs to isometric space.
 
@@ -169,21 +178,24 @@ echo ${PCP_PATH}bin/tess_pig.sh -s ${ruta}  -h lh #-n 5
 
 if [ ${steps} == "precon_1" ];then 
     
-cp ${img} ${img/.nii.gz/orig.nii.gz}  
-# echo ${PCP_PATH}bin/bet_pig.sh -i ${img} -o ${name/.nii.gz/}_brain
-if [ -f ${dir}/pre_extract.mat ];then
-    echo " this brain uses a prior linear registraton of pre_extract.mat as an initial starting point for brain extraction"
-    ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y -m  ${dir}/pre_extract.mat
-else
-    ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
+
+mkdir -p ${dir}${name/.nii.gz/}
+brain_dir=${dir}${name/.nii.gz/}
+
+
+
+echo ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
+##### check for a preliminary alignment matrix first prior to running. sometimes this is necessary for difficult brains. 
+    if [ -f ${dir}/pre_extract.mat ];then
+        echo " this brain uses a prior linear registraton of pre_extract.mat as an initial starting point for brain extraction"
+        ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y -m  ${dir}/pre_extract.mat
+    else
+        ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
+    fi
 fi
 
- brain_dir=${dir}${name/.nii.gz/}_brain
-
- echo ${brain_dir}
-
-fi
-
+echo " "
+echo "extraction already run. now play with the rest"
 
 # ########## precon 2 steps ########### 
 
@@ -209,7 +221,7 @@ echo ${PCP_PATH}/bin/N4_pig.sh -i sanlm_${brain} -x ${mask}
 ${ANTSPATH}N4BiasFieldCorrection -d 3 -i sanlm_${brain}   -c [100x100x100x100,0.0000000001] -b [200] -o sanlm_${brain/.nii.gz/_0N4.nii.gz}  --verbose 0 
 
 
-${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal}
+${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal}  -t ${thresh}
 
 # #### conform outputs to isometric space.
 

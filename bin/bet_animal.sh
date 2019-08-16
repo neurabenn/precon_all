@@ -120,12 +120,28 @@ ${ANTSPATH}N4BiasFieldCorrection -d 3 -i ${T1}  -c [100x100x100x100,0.0000000001
 $ANTSPATH/DenoiseImage -d 3 -i ${T1} -o sanlm_${T1}
 $ANTSPATH/ImageMath  3 sanlm_${T1} TruncateImageIntensity sanlm_${T1} 0.05 0.999 
 
-if [ ${premat} == "" ];then
-	$FSLDIR/bin/flirt -in sanlm_${T1} -ref ${temp} -dof 12  -omat mri/transforms/init.mat -searchrx -180 180 -searchry -180 180 -searchrz -180 180 -out str_2std_linear
-	$FSLDIR/bin/fnirt --in=sanlm_${T1} --ref=${temp}  --cout=mri/transforms/str2std_warp #--aff=mri/transforms/init.mat
-else
+if [[  -f ${premat}  ]] ;then
+
+	echo "##### Using a pre_extraction matrix ########"
+	mask="$(dirname ${premat})/regmask.nii.gz"
 	echo "using pre_extract.mat as initial transform"
-	$FSLDIR/bin/fnirt --in=sanlm_${T1} --ref=${temp}  --cout=mri/transforms/str2std_warp --aff=${premat} -v
+
+	if [ -f ${mask} ];then
+		echo "##### USING A REGISTRATION MASK FOR FNIRT ######"
+		applywarp --in=${mask} --ref=${temp} --interp=nn --out=${mask/.nii.gz/_std.nii.gz} --premat=${premat}
+		echo $FSLDIR/bin/fnirt --in=sanlm_${T1} --ref=${temp}  --cout=mri/transforms/str2std_warp --aff=${premat}  --applyinmask=${mask} --applyrefmask=${mask/.nii.gz/_std.nii.gz}
+		$FSLDIR/bin/fnirt --in=sanlm_${T1} --ref=${temp}  --cout=mri/transforms/str2std_warp --aff=${premat}  --applyinmask=${mask} --applyrefmask=${mask/.nii.gz/_std.nii.gz}
+	else
+		echo $FSLDIR/bin/fnirt --in=sanlm_${T1} --ref=${temp}  --cout=mri/transforms/str2std_warp --aff=${premat}
+		$FSLDIR/bin/fnirt --in=sanlm_${T1} --ref=${temp}  --cout=mri/transforms/str2std_warp --aff=${premat} 
+	fi
+	
+else
+	
+	echo "#### no pre_Extraction matrix used"
+
+	$FSLDIR/bin/flirt -in sanlm_${T1} -ref ${temp} -dof 12  -omat mri/transforms/init.mat -searchrx -180 180 -searchry -180 180 -searchrz -180 180 -out str_2std_linear
+	$FSLDIR/bin/fnirt --in=sanlm_${T1} --ref=${temp}  --cout=mri/transforms/str2std_warp -v --aff=mri/transforms/init.mat
 fi
 
 $FSLDIR/bin/invwarp --warp=mri/transforms/str2std_warp --ref=sanlm_${T1} --out=mri/transforms/std2str_warp

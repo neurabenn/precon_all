@@ -75,14 +75,23 @@ if [ -f wm_orig.nii.gz ];then :; else  echo "Missing WM segmentation" `pwd`"/wm_
 anat=${anat/mri/}$T1
 echo ${anat}
 mri_dir=`pwd`
-if [ -d ${mri_dir}/orig_res ];then
-  echo "not the first run of filling. getting original WM segmentation for filling"
-  for i in `ls ${mri_dir}/orig_res/*.gz`;do 
-    cp ${i} ${mri_dir}/
 
-  done 
+wm_seg=wm_orig.nii.gz
+if [ -f ${mri_dir}/wm_hand_edit.nii.gz ];then 
+	wm_seg=wm_hand_edit.nii.gz
+	echo "using a hand edited WM segmentation for fill"
+	mri_convert ${mri_dir}/wm_hand_edit.nii.gz ${mri_dir}/wm_hand_edit.mgz
 
 fi
+echo "##### THE WM SEG BEING USED IS " "${wm_seg}" " ##########"
+# if [ -d ${mri_dir}/orig_res ];then
+#   echo "not the first run of filling. getting original WM segmentation for filling"
+#   for i in `ls ${mri_dir}/orig_res/*.gz`;do 
+#     cp ${i} ${mri_dir}/
+
+#   done 
+
+#fi
 echo "#####Converting FSL transform to LTA#####"
 pwd
 ##convert fsl registrations for later use. note if planning to later resample to isometric these will be resampled to the isometric standard image####
@@ -94,7 +103,10 @@ lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outmni ${mri_dir}/transf
 echo "warping standard masks for filling"
 for mask in `ls $PCP_PATH/standards/${animal}/fill/*gz`;do 
   out=$(basename $mask)
-  $FSLDIR/bin/flirt -in ${mask} -ref ${anat} -out ${mri_dir}/${out} -interp nearestneighbour -applyxfm -init ${mri_dir}/transforms/std2str.mat 
+  #### V1.1 edit now uses applywarp and non llilnear warp from brain extraction
+  $FSLDIR/bin/applywarp --in=${mask} --ref=${anat} --out=${mri_dir}/${out} --interp=nn --warp=${mri_dir}/transforms/std2str_warp.nii.gz
+  ### flirt was deprecated from V1.0
+  #$FSLDIR/bin/flirt -in ${mask} -ref ${anat} -out ${mri_dir}/${out} -interp nearestneighbour -applyxfm -init ${mri_dir}/transforms/std2str.mat 
 
   # antsApplyTransforms -d 3 -e 0 -i ${mask} \
   # -n NearestNeighbor  -r ${anat}  \
@@ -110,20 +122,20 @@ upper=`fslstats brainmask -R | cut -d ' ' -f2-`
  echo "upper intensity value is " $upper 
 
  
-
+echo "###### FILLING  WM #######"
 
 
  fslmaths brainmask -div $upper -mul 150 nu -odt int
 
- fslmaths nu -mas wm_orig nu_wm
+ fslmaths nu -mas "${wm_seg}" nu_wm
 
 
 
-  fslmaths wm_orig -add sub_cort -bin wm+SC
+  fslmaths "${wm_seg}" -add sub_cort -bin wm+SC
   fslmaths nu -mas wm+SC wm+SC_sub
 
 
-  fslmaths wm_orig -mul 110 wm_110
+  fslmaths "${wm_seg}" -mul 110 wm_110
 
   fslmaths wm+SC -bin -mul 110 wm_110+SC
 
@@ -137,11 +149,11 @@ upper=`fslstats brainmask -R | cut -d ' ' -f2-`
  ### create WM image with sub_c intensity differences #####
 
  echo "######### filling WM ########"
- fslmaths wm_orig -sub sub_cort wm_nosubc
+ fslmaths "${wm_seg}" -sub sub_cort wm_nosubc
  fslmaths wm_nosubc -mul 110 wm_nosubc 
  fslmaths sub_cort -mul 250 sub_cort250
  fslmaths wm_nosubc -add sub_cort250 wm
- fslmaths wm_orig -sub non_cort -thr 0 -bin  wm_pre_fill
+ fslmaths "${wm_seg}" -sub non_cort -thr 0 -bin  wm_pre_fill
   fslmaths wm_pre_fill -add sub_cort250  -bin  wm_pre_fill
 
  fslmaths wm_pre_fill -fillh wm_pre_fill
@@ -199,6 +211,7 @@ mri_convert brain.nii.gz  brain.mgz
  mri_convert wm.nii.gz wm.mgz
  mri_convert filled.nii.gz filled.mgz 
  mri_convert wm_orig.nii.gz wm_orig.mgz
+
 
  mri_dir=${subj}mri
 
