@@ -55,4 +55,8 @@ Finally you have the option to make a segmentation priors folder titled: $PCP_PA
 
 Stay tuned for updates. We'll soon release a manual including how to generate each of the required inputs for your animal
 
+**Update! Macaque files are now included from the NMT NIMH macaque template. **
+** If using the NMT Macaque files we recommend using >80 GB memory for the FNIRT stages Also run it with a higher threshold than 0.5 **
+** Editing wm_orig.nii.gz and saving it as wm_hand_edit.ni.gz allows for manual corrections of the fast segmentation.**
+
 Here's the full poster explaining the pipeline: https://user-images.githubusercontent.com/9336717/59021392-fd978080-884b-11e9-8cf1-cb21b08e776b.jpg
