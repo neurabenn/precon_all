@@ -187,7 +187,8 @@ function iso_check () {
   for img in  `ls *.nii.gz`;do 
     $FSLDIR/bin/flirt -in ${img} -ref ${img} -out ${img} -applyisoxfm ${max} -interp nearestneighbour -noresampblur -omat ${mri_dir}/transforms/isometrize.mat
   done
-  cp -r ${mri_dir}/transforms ${mri_dir}orig_res/transforms
+  mkdir -p ${mri_dir}/orig_res/transforms
+  cp -r ${mri_dir}/transforms ${mri_dir}/orig_res/transforms
 
 
   cp ${mri_dir}/orig_res/rawavg.nii.gz ${mri_dir}/rawavg.nii.gz
