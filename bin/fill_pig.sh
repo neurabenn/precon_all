@@ -71,7 +71,7 @@ cp ${T1} mri/brainmask.nii.gz
 cd mri/ 
 if [ -f wm_orig.nii.gz ];then :; else  echo "Missing WM segmentation" `pwd`"/wm_orig.nii.gz";echo  "Please provide this required WM segmentation"; exit 1;fi
 
- anat=`pwd`
+anat=`pwd`
 anat=${anat/mri/}$T1
 echo ${anat}
 mri_dir=`pwd`
@@ -104,9 +104,9 @@ echo "warping standard masks for filling"
 for mask in `ls $PCP_PATH/standards/${animal}/fill/*gz`;do 
   out=$(basename $mask)
   #### V1.1 edit now uses applywarp and non llilnear warp from brain extraction
-  $FSLDIR/bin/applywarp --in=${mask} --ref=${anat} --out=${mri_dir}/${out} --interp=nn --warp=${mri_dir}/transforms/std2str_warp.nii.gz
+#   $FSLDIR/bin/applywarp --in=${mask} --ref=${anat} --out=${mri_dir}/${out} --interp=nn --warp=${mri_dir}/transforms/std2str_warp.nii.gz
   ### flirt was deprecated from V1.0
-  #$FSLDIR/bin/flirt -in ${mask} -ref ${anat} -out ${mri_dir}/${out} -interp nearestneighbour -applyxfm -init ${mri_dir}/transforms/std2str.mat 
+  $FSLDIR/bin/flirt -in ${mask} -ref ${anat} -out ${mri_dir}/${out} -interp nearestneighbour -applyxfm -init ${mri_dir}/transforms/std2str.mat 
 
   # antsApplyTransforms -d 3 -e 0 -i ${mask} \
   # -n NearestNeighbor  -r ${anat}  \
