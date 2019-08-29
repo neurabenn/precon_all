@@ -180,14 +180,14 @@ function iso_check () {
     order=`echo -e "${x}\n${y}\n${z}" |sort -g -r`
     max=`echo ${order} |awk '{print $1}'`
     echo "Data will be resampled to " ${max} "isometric"
-    mkdir -p orig_res
+    mkdir -p ${mri_dir}/orig_res/transforms
     for i in `ls *gz`;do cp ${i} ./orig_res/$(basename $i) ; done 
   
   #resample to isometric resolution for surface generation. #note if this option is selected the talairach transforms will also be updated. ####
   for img in  `ls *.nii.gz`;do 
     $FSLDIR/bin/flirt -in ${img} -ref ${img} -out ${img} -applyisoxfm ${max} -interp nearestneighbour -noresampblur -omat ${mri_dir}/transforms/isometrize.mat
   done
-  mkdir -p ${mri_dir}/orig_res/transforms
+  
   cp -r ${mri_dir}/transforms ${mri_dir}/orig_res/transforms
 
 
