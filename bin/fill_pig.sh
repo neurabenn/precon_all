@@ -4,7 +4,7 @@
 ######## This script is dependent on files generated in the previous outputs. 
 #######  This is the beginning of Step 4 for surface generation i.e. filling. 
 ####### If you are unhappy with your surfaces then manually edit wm_orig.nii.gz and rerun this script and animal_tess.sh
-
+source $FREESURFER_HOME/SetUpFreeSurfer.sh
 Usage() {
     echo " "
     echo "Usage: `basename $0` [options] -i <T1_image> -x <Binary Mask>"
@@ -95,7 +95,7 @@ echo "##### THE WM SEG BEING USED IS " "${wm_seg}" " ##########"
 echo "#####Converting FSL transform to LTA#####"
 pwd
 ##convert fsl registrations for later use. note if planning to later resample to isometric these will be resampled to the isometric standard image####
-
+source $FREESURFER_HOME/SetUpFreeSurfer.sh
 lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
 lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
 
