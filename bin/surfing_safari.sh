@@ -1,6 +1,4 @@
 #!/bin/bash
-pwd
-
 Usage() {
     echo " "
     echo "Preclinical Surface Reconstruction"
@@ -13,16 +11,18 @@ Usage() {
     echo "-r < precon_all>		: hemisphere designationof lh or rh of surfaces to generate" 
     echo ""
     echo "-a <animal model> must be should be the name of a folder in the $PCP_PATH/standards/directory. Ex. $PCP_PATH/standards/pig" 
+     echo "-n no brain extraction. Using a previously extracted brain. only runs linear transforms. " 
     echo " -t < Segmentation threshold default is 0.5 >"
     echo "Optional Arguments" 
     echo "-h     help "
     echo " "
-    echo " The following steps are applied:\n 1: Brain extraction \n 2: Denoising using SANLM and CAT 12 \n 3: Segmentation (FSL FAST) \n 4: WM Filling and Tesselation"
+    echo " The following steps are applied:\n 1: Brain extraction \n 2: Denoising using SANLM and in ANTs \n 3: Segmentation (FSL FAST) \n 4: WM Filling and Tesselation"
     echo " "
     echo " precon_all reconstructs the cortical surface from a single whole body image. "
     echo " precon_1 Only performs brain extraction i.e step 1 "
     echo " precon_2 performs steps Denoising, Segmentation, WM fill and generates surfaces"
     echo " precon_3 performs only WM filling and Generates surfaces "
+    echo " PM_1 does post mortem processing skips brain extraction and registration. Filling masks must be provided in the same folder as the image to be segmented"
     echo ""
     echo "Example:  `basename $0` -i <T1.nii.gz> -r precon_all -a <pig>"
     
@@ -37,9 +37,10 @@ GREEN=$(echo -en '\033[00;32m')
 img=""
 steps=""
 animal=""
+no_extract=""
 help=""
 
-while getopts ":i:r:a:t:h" opt ; do 
+while getopts ":i:r:a:t:n:h" opt ; do 
 	case $opt in
 		i) i=1;
 			img=`echo $OPTARG`
@@ -60,6 +61,9 @@ while getopts ":i:r:a:t:h" opt ; do
     t)  
             thresh=`echo $OPTARG`
                 ;;
+     n)  
+            no_extract=`echo $OPTARG`
+                ;;
 		\?)
 		  echo "Invalid option:  -$OPTARG" 
 
@@ -75,7 +79,16 @@ if [[ ${h} -eq 1 ]];then echo "${RED}\n INSERT HELP STATEMENT ${NC}" ; Usage; ex
 if [[ ${i} -lt 1 ]];then echo "${RED}\n-i is a compulsory Argument${NC}" ; Usage; exit 1 ;fi
 if [[ ${r} -lt 1 ]];then echo "${RED}\n-r is a compulsory Argument${NC}" ; Usage; exit 1 ;fi
 if [ ! -f ${img} ];then echo " "; echo " ${RED}CHECK INPUT FILE PATH ${NC}"; Usage; exit 1;fi ### check input file exists
+
+
+################################### CHANGE TO ALSO CHECK FOR BEDPOSTX FIRECTORY FILES IN THE EVENT FAKE T1 BEING USED #####################
+
 if [ "${img: -4}" == ".nii" ] || [ "${img: -7}" == ".nii.gz" ] ;then : ; else Usage; exit 1 ;fi ### check format of image is nifti
+
+
+
+
+
 # echo "img"
 if [[ ${thresh} == "" ]];then 
     thresh=0.5
@@ -102,7 +115,57 @@ else
 	exit 1 
 fi
 
-if [ ! -d $PCP_PATH/standards/${animal} ];then "Please specify or create an animal directory in $PCP_PATH/standards";Usage;exit 1 ;fi
+######################### CHECK IF BEDPOST DIERCTORY IS INPUT. IF SO CREATE FAKE T1 AND USE FAKE T1 FOR REST OF PIPELINE########################
+###################4###### CONVERT T2 TO T1 LATER ON. DO SEGMENTATION IN NATIVE MODLAITY BETWEEN T2 AND T1 #####################################
+
+
+### check to see if brain is already extracted. if so than set up required directory structure. 
+if [[  ${no_extract} == "y"  ]];then
+        echo "USING PRE_EXTRACTED BRAIN"
+        mkdir -p ${dir}${name/.nii.gz/}
+    brain_dir=${dir}${name/.nii.gz/}
+    #### apply brain masks
+    cd ${brain_dir}
+
+    brain=$(basename ${brain_dir})_brain.nii.gz
+    mask=${brain/.nii.gz/_mask.nii.gz}
+
+    $FSLDIR/bin/fslmaths ${img}  ${brain}
+    mkdir -p ${brain_dir}/mri/transforms
+
+    if [ ${steps} == "precon_all" ];then 
+        steps=precon_2
+    fi
+
+fi
+
+#### check to see if using single subject masks. this assumes the brain is ex-vivo or pre_extracted. 
+if [ ${animal} == "masks" ];then
+
+echo "Using supplied masks for a single subject."
+
+
+mkdir -p ${dir}${name/.nii.gz/}
+brain_dir=${dir}${name/.nii.gz/}
+cp ${img}  ${brain_dir}/
+cp -r ${dir}/masks ${brain_dir}/masks
+#### apply brain masks
+cd ${brain_dir}
+
+brain=$(basename ${brain_dir})_brain.nii.gz
+mask=${brain/.nii.gz/_mask.nii.gz}
+
+$FSLDIR/bin/fslmaths ${img} -mas ${brain_dir}/masks/brain_mask.nii.gz ${brain}
+$FSLDIR/bin/imcp ${brain_dir}/masks/brain_mask.nii.gz ${mask}
+mkdir -p ${brain_dir}/mri/transforms
+
+if [ ${steps} == "precon_all" ];then 
+    steps=precon_2
+fi
+
+fi
+
+
 
 ######## conditions for precon all
 if [ ${steps} == "precon_all" ];then 
@@ -148,7 +211,13 @@ ls ${brain_dir}
 echo ${PCP_PATH}/bin/N4_pig.sh -i sanlm_${brain} -x ${mask}
 ${ANTSPATH}N4BiasFieldCorrection -d 3 -i sanlm_${brain}   -c [100x100x100x100,0.0000000001] -b [200] -o sanlm_${brain/.nii.gz/_0N4.nii.gz}  --verbose 0 
 
+if [ -d $PCP_PATH/standards/${animal}/seg_priors ];then
+    echo " USING SEGMENTATION PRIORS "
 ${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh}
+else
+    echo " NO SEGMENTATION PRIORS "
+    ${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh}
+fi
 
 #### conform outputs to isometric space.
 
@@ -174,6 +243,10 @@ echo ${PCP_PATH}bin/tess_pig.sh -s ${ruta}  -h lh #-n 5
  done
  fi
 
+##########################################################################################################################################
+##########################################################################################################################################
+##########################################################################################################################################
+##########################################################################################################################################
 # ############# precon 1 conditions 
 
 if [ ${steps} == "precon_1" ];then 
@@ -195,8 +268,12 @@ echo ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
 fi
 
 echo " "
-echo "extraction already run. now play with the rest"
+echo "extraction already run."
 
+##########################################################################################################################################
+##########################################################################################################################################
+##########################################################################################################################################
+##########################################################################################################################################
 # ########## precon 2 steps ########### 
 
 if [ ${steps} == "precon_2" ];then 
@@ -213,22 +290,27 @@ pwd
 brain=$(basename ${brain_dir})_brain.nii.gz
 mask=${brain/.nii.gz/_mask.nii.gz}
 
-### prepare brain image for segmentation. Denoise and N4 bias correction.
+## prepare brain image for segmentation. Denoise and N4 bias correction.
 ${ANTSPATH}DenoiseImage -d 3 -i ${brain} -o sanlm_${brain} 
 
 
 echo ${PCP_PATH}/bin/N4_pig.sh -i sanlm_${brain} -x ${mask}
 ${ANTSPATH}N4BiasFieldCorrection -d 3 -i sanlm_${brain}   -c [100x100x100x100,0.0000000001] -b [200] -o sanlm_${brain/.nii.gz/_0N4.nii.gz}  --verbose 0 
 
+if [ -d $PCP_PATH/standards/${animal}/seg_priors ];then
+    echo " USING SEGMENTATION PRIORS "
+    ${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh}
+else
+    echo " NO SEGMENTATION PRIORS "
+    ${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh}
+fi
 
-${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal}  -t ${thresh}
-
-# #### conform outputs to isometric space.
+#### conform outputs to isometric space.
 
 
-# #### concatenate original affine (flirt format) transform with an applyisoxfm 0.8 / native resolution
-# #### alternately add script to check for isometric. if not resample to largest value.
-# ### get all paths ready for fill stage
+#### concatenate original affine (flirt format) transform with an applyisoxfm 0.8 / native resolution
+#### alternately add script to check for isometric. if not resample to largest value.
+### get all paths ready for fill stage
 
 echo "time to fill add isometric resampling in this step"
 echo  ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
@@ -238,23 +320,26 @@ ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
 
 
 cd ${dir}
-echo ${PCP_PATH}bin/tess_pig.sh -s ${ruta}  -h lh #-n 5 
+ 
  for hemi in lh rh;do
 
  ### potentially change file to work as function.  
  ${PCP_PATH}/bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
 done
-##### precon3 parameters. still need to add control checks to check for segmentation files. 
+#### precon3 parameters. still need to add control checks to check for segmentation files. 
 fi
 
 
-
+##########################################################################################################################################
+##########################################################################################################################################
+##########################################################################################################################################
+##########################################################################################################################################
 
 
 if [ ${steps} == "precon_3" ];then
 
 
-echo "segmentation already run. now play with the rest"
+echo "segmentation already run."
 
 # ##### parse outputs of brain extraction. Save warps. and convert. 
 # ##### make mri directory here and mri/transforms
@@ -268,8 +353,6 @@ brain=$(basename ${brain_dir})_brain.nii.gz
 mask=${brain/.nii.gz/_mask.nii.gz}
 
 
-
-echo "time to fill add isometric resampling in this step"
 echo  ${PCP_PATH}/bin/fill_pig.sh -i sanlm${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
 ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
 
@@ -277,7 +360,7 @@ ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
 
 
 cd ${dir}
-echo ${PCP_PATH}bin/tess_pig.sh -s ${ruta}  -h lh #-n 5 
+
  for hemi in lh rh;do
 
  ### potentially change file to work as function.  

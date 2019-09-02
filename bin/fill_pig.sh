@@ -1,10 +1,10 @@
-#!/bin/bash 
+ #!/bin/bash 
 
 ######## this script is only meant to be run following brain extraction, denoising, Bias field correction and segmentation. 
 ######## This script is dependent on files generated in the previous outputs. 
 #######  This is the beginning of Step 4 for surface generation i.e. filling. 
 ####### If you are unhappy with your surfaces then manually edit wm_orig.nii.gz and rerun this script and animal_tess.sh
-source $FREESURFER_HOME/SetUpFreeSurfer.sh
+
 Usage() {
     echo " "
     echo "Usage: `basename $0` [options] -i <T1_image> -x <Binary Mask>"
@@ -43,7 +43,7 @@ while getopts ":i:a:" opt ; do
     a)
       a=1;
       animal=`echo $OPTARG`
-      if [ ! -d ${PCP_PATH}/standards/${animal} ];then echo " "; echo " ${RED}CHECK STNADARDS FILE PATH ${NC}"; Usage; exit 1;fi ### check input file exists
+      if [ ! -d ${PCP_PATH}/standards/${animal} ] && [ ${animal} != "masks" ] ;then echo " "; echo " ${RED}CHECK STNADARDS FILE PATH ${NC}"; Usage; exit 1;fi ### check input file exists
         ;;
 		\?)
 		  echo "Invalid option:  -$OPTARG" >&2
@@ -64,6 +64,9 @@ pwd
 T1=$(basename ${img})
 echo ${T1}
 
+########################### EDIT THIS TO SEARCH FOR A MASKS FOLDER WITH WHICH TO PERFORM EX VIVO FILLING ################
+
+
 ##### making the brain mask image. Must be brain extracted
 cp ${T1} mri/rawavg.nii.gz
 cp ${T1} mri/brainmask.nii.gz 
@@ -71,7 +74,7 @@ cp ${T1} mri/brainmask.nii.gz
 cd mri/ 
 if [ -f wm_orig.nii.gz ];then :; else  echo "Missing WM segmentation" `pwd`"/wm_orig.nii.gz";echo  "Please provide this required WM segmentation"; exit 1;fi
 
-anat=`pwd`
+ anat=`pwd`
 anat=${anat/mri/}$T1
 echo ${anat}
 mri_dir=`pwd`
@@ -95,26 +98,45 @@ echo "##### THE WM SEG BEING USED IS " "${wm_seg}" " ##########"
 echo "#####Converting FSL transform to LTA#####"
 pwd
 ##convert fsl registrations for later use. note if planning to later resample to isometric these will be resampled to the isometric standard image####
-source $FREESURFER_HOME/SetUpFreeSurfer.sh
-lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
-lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
 
 #### use inital syn warps from brain extraction to split hemispheres and fill subcortical and non cortical material. #######
+
+
+
 echo "warping standard masks for filling"
-for mask in `ls $PCP_PATH/standards/${animal}/fill/*gz`;do 
-  out=$(basename $mask)
-  #### V1.1 edit now uses applywarp and non llilnear warp from brain extraction
-#   $FSLDIR/bin/applywarp --in=${mask} --ref=${anat} --out=${mri_dir}/${out} --interp=nn --warp=${mri_dir}/transforms/std2str_warp.nii.gz
-  ### flirt was deprecated from V1.0
-  $FSLDIR/bin/flirt -in ${mask} -ref ${anat} -out ${mri_dir}/${out} -interp nearestneighbour -applyxfm -init ${mri_dir}/transforms/std2str.mat 
 
-  # antsApplyTransforms -d 3 -e 0 -i ${mask} \
-  # -n NearestNeighbor  -r ${anat}  \
-  # -t [${mri_dir}/transforms/ANTSitkGeneric.mat,1] \
-  # -t ${mri_dir}/transforms/ANTSitkInverseWARP.nii.gz -o ${mri_dir}/${out}
+if [ ${animal} != "masks" ];then 
+
+  lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
+  lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
+
+  for mask in `ls $PCP_PATH/standards/${animal}/fill/*gz`;do 
+    out=$(basename $mask)
+    $FSLDIR/bin/flirt -in ${mask} -ref ${anat} -out ${mri_dir}/${out} -interp nearestneighbour -applyxfm -init ${mri_dir}/transforms/std2str.mat 
+  done
 
 
-done
+else
+
+  echo " #######################USING SINGLE SUBJECT MASKS################"
+
+lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${anat}
+lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${anat}
+
+
+ for mask in `ls ..//masks/*gz`;do 
+    out=$(basename $mask)
+    echo ${out}
+    $FSLDIR/bin/flirt -in ${mask} -ref ${anat} -out ${mri_dir}/${out} -interp nearestneighbour -applyxfm -init ${mri_dir}/transforms/std2str.mat 
+  done
+
+
+
+
+fi
+
+##################################################################################################################### end necesary edits
+
 
 echo "###### Normalizing T1 Intensities ######"
 #### normalization of volume for use in freesurfer
@@ -180,15 +202,14 @@ function iso_check () {
     order=`echo -e "${x}\n${y}\n${z}" |sort -g -r`
     max=`echo ${order} |awk '{print $1}'`
     echo "Data will be resampled to " ${max} "isometric"
-    mkdir -p ${mri_dir}/orig_res/transforms
+    mkdir -p orig_res
     for i in `ls *gz`;do cp ${i} ./orig_res/$(basename $i) ; done 
   
   #resample to isometric resolution for surface generation. #note if this option is selected the talairach transforms will also be updated. ####
   for img in  `ls *.nii.gz`;do 
     $FSLDIR/bin/flirt -in ${img} -ref ${img} -out ${img} -applyisoxfm ${max} -interp nearestneighbour -noresampblur -omat ${mri_dir}/transforms/isometrize.mat
   done
-  
-  cp -r ${mri_dir}/transforms ${mri_dir}/orig_res/transforms
+  cp -r ${mri_dir}/transforms ${mri_dir}orig_res/transforms
 
 
   cp ${mri_dir}/orig_res/rawavg.nii.gz ${mri_dir}/rawavg.nii.gz

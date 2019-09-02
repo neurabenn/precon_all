@@ -57,8 +57,6 @@ echo ${subj}
 echo ${hemi}
 echo ${infla}
 
-source $FREESURFER_HOME/SetUpFreeSurfer.sh
-
 SUBJECTS_DIR=$(echo $(cd $(dirname "${subj}") && pwd -P))/
  subj=$(basename ${subj})
  echo $SUBJECTS_DIR

@@ -36,7 +36,7 @@ while getopts ":i:a:p:t:" opt ; do
 		a)
 			a=1;
 			animal=`echo $OPTARG`
-			if [ ! -d ${PCP_PATH}/standards/${animal} ];then echo " "; echo " ${RED}CHECK STNADARDS FILE PATH ${NC}"; Usage; exit 1;fi ### check input file exists
+			if [ ! -d ${PCP_PATH}/standards/${animal} ] && [ ${animal} != "masks" ];then echo " "; echo " ${RED}CHECK STANDARDS FILE PATH ${NC}"; Usage; exit 1;fi ### check input file exists
 				;;
 
 		p)
@@ -73,10 +73,17 @@ if [ -d seg ];then : ; else mkdir seg;fi
 if [ -d mri ];then : ; else mkdir mri;fi
 if [ -d surf ];then : ; else mkdir surf;fi
 
+if [ ${animal} = masks ];then
+	cp $FSLDIR/etc/flirtsch/ident.mat ${ruta}/mri/transforms/std2str.mat
+	cp $FSLDIR/etc/flirtsch/ident.mat ${ruta}/mri/transforms/str2std.mat
+fi
+
 
 if [ "$priors" = "" ];then
 	echo "FAST will be run without priors"
-	echo $FSLDIR/bin/fast -n 3 -B -o ${ruta}/seg/seg ${ruta}/${T1}
+
+	$FSLDIR/bin/fast -n 3 -B -o ${ruta}/seg/seg ${ruta}/${T1}
+
 else
 	echo "priors activated"
 	echo ${priors}
@@ -90,7 +97,14 @@ else
 	echo "warping priors to anatomical space"
 
 
-flirt -in $PCP_PATH/standards/${animal}/${animal}_brain -ref ${T1} -omat ${ruta}/seg/std2str.mat
+
+
+
+########################################## check modality. for T1 or T2. ###################
+
+
+
+flirt -in $PCP_PATH/standards/${animal}/${animal}_brain -ref ${T1} -omat ${ruta}/seg/std2str.mat -searchrx -180 180 -searchry -180 180 -searchrz -180 180
 mv ${ruta}/seg/std2str.mat ${ruta}/mri/transforms/std2str.mat
 convert_xfm -omat ${ruta}/mri/transforms/str2std.mat -inverse ${ruta}/mri/transforms/std2str.mat
 echo "SEGMENTING" ${animal}
@@ -107,12 +121,6 @@ if [[ ${thresh} == "" ]];then
 else
  :
 fi
-
-
-
-##### segment into 3 classes, WM, GM, CSF #######
-# $FSLDIR/bin/fast -n 3 -B -o seg/seg ${ruta}/${T1}
-
 
 ###### threshold WM segmentation. Deault is 0.25, can be changed by user##########
 $FSLDIR/bin/fslmaths seg/seg_pve_2.nii.gz -thr ${thresh} -bin mri/wm_orig
