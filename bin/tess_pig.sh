@@ -1,5 +1,5 @@
 #!/bin/bash 
-
+source $FREESURFER_HOME/SetUpFreeSurfer.sh
 Usage() {
     echo " "
     echo "Usage: `basename $0` [options] -i <Subject> -h <lh or rh>"
