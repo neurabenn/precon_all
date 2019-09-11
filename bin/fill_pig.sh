@@ -1,5 +1,5 @@
  #!/bin/bash 
-
+source $FREESURFER_HOME/SetUpFreeSurfer.sh
 ######## this script is only meant to be run following brain extraction, denoising, Bias field correction and segmentation. 
 ######## This script is dependent on files generated in the previous outputs. 
 #######  This is the beginning of Step 4 for surface generation i.e. filling. 
