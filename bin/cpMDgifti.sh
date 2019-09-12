@@ -18,9 +18,6 @@ new=${2}
 if [ $# -lt 2 ] ; then Usage; exit 0; fi
 
 
-
-
-
 dir=$(dirname ${in})
 ##### get correspinding metadata tags from first gifti 
 MD1=$(cat "${in}" |grep -nr 'MetaData' )
@@ -29,22 +26,27 @@ MD1=$(cat "${in}" |grep -nr 'MetaData' )
 # done
 MD1=${MD1//[^0-9]/ }
 startMD=$(echo ${MD1} |cut -d ' ' -f 3 )
-endMD=$(echo ${MD1} |cut -d ' ' -f 4 )
+# endMD=$(echo ${MD1} |cut -d ' ' -f 4 )
+
+transform=$(cat "${in}" |grep -nr '</CoordinateSystemTransformMatrix>')
+transform=${transform//[^0-9]/ }
+endMD=$(echo ${transform} |cut -d ' ' -f 2 )
+# echo ${endMD}
 
 MD=$(sed -n "${startMD},${endMD}p" "${in}")
 
-mat="    <CoordinateSystemTransformMatrix>
-         <DataSpace>NIFTI_XFORM_UNKNOWN</DataSpace>
-         <TransformedSpace>NIFTI_XFORM_TALAIRACH</TransformedSpace>
-         <MatrixData>
-            1.000000 0.000000 0.000000 0.000000 
-            0.000000 1.000000 0.000000 0.000000 
-            0.000000 0.000000 1.000000 0.000000 
-            0.000000 0.000000 0.000000 1.000000 
-         </MatrixData>
-      </CoordinateSystemTransformMatrix>"
+# mat="    <CoordinateSystemTransformMatrix>
+#          <DataSpace>NIFTI_XFORM_UNKNOWN</DataSpace>
+#          <TransformedSpace>NIFTI_XFORM_TALAIRACH</TransformedSpace>
+#          <MatrixData>
+#             1.000000 0.000000 0.000000 0.000000 
+#             0.000000 1.000000 0.000000 0.000000 
+#             0.000000 0.000000 1.000000 0.000000 
+#             0.000000 0.000000 0.000000 1.000000 
+#          </MatrixData>
+#       </CoordinateSystemTransformMatrix>"
 
-MD=`echo "${MD}" "${mat}"`
+# MD=`echo "${MD}" "${mat}"`
 
 #### get metadat insertion point from second gifti
 
