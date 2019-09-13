@@ -106,9 +106,13 @@ pwd
 echo "warping standard masks for filling"
 
 if [ ${animal} != "masks" ];then 
-
-  lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
-  lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
+  ####deprecated. previously used actual translation to standard space.
+  #### if wishing to make a group subject than make sure the commented out code is run to have an actual standard space matrix
+  #lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
+  #lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
+  #### new version uses identitiy matrix. Sep 13 2019
+  lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
+  lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
 
   for mask in `ls $PCP_PATH/standards/${animal}/fill/*gz`;do 
     out=$(basename $mask)
