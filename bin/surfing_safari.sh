@@ -22,7 +22,8 @@ Usage() {
     echo " precon_1 Only performs brain extraction i.e step 1 "
     echo " precon_2 performs steps Denoising, Segmentation, WM fill and generates surfaces"
     echo " precon_3 performs only WM filling and Generates surfaces "
-    echo " PM_1 does post mortem processing skips brain extraction and registration. Filling masks must be provided in the same folder as the image to be segmented"
+    echo " precon_art meant for art projects or figures in which the non_cort mask is included. Only run after precon_2"
+    echo " precon art is not meant to actually  give any statistics or information on the surface. visualization purposes only "
     echo ""
     echo "Example:  `basename $0` -i <T1.nii.gz> -r precon_all -a <pig>"
     
@@ -108,7 +109,7 @@ brain_dir=${dir}${name/.nii.gz/}
 
 
 #### determine that the call matches the predefined options
-if [ ${steps} == "precon_all" ] || [ ${steps} == "precon_1" ] || [ ${steps} == "precon_2" ] || [ ${steps} == "precon_3" ];then echo "${GREEN}performing ${steps} on ${img}${NC}"
+if [ ${steps} == "precon_all" ] || [ ${steps} == "precon_1" ] || [ ${steps} == "precon_2" ] || [ ${steps} == "precon_3" ] || [ ${steps} == "precon_art" ];then echo "${GREEN}performing ${steps} on ${img}${NC}"
 else 
 	echo "${RED} Please use one of the following predefined options as the -r argument "\n" precon_all "\n" precon_1 "\n" precon_2 precon_3${NC} "
 	Usage
@@ -316,7 +317,7 @@ echo "time to fill add isometric resampling in this step"
 echo  ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
 ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
 
-# ####proceed as normal. 
+####proceed as normal. 
 
 
 cd ${dir}
@@ -326,7 +327,7 @@ cd ${dir}
  ### potentially change file to work as function.  
  ${PCP_PATH}/bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
 done
-#### precon3 parameters. still need to add control checks to check for segmentation files. 
+### precon3 parameters. still need to add control checks to check for segmentation files. 
 fi
 
 
@@ -356,7 +357,7 @@ mask=${brain/.nii.gz/_mask.nii.gz}
 echo  ${PCP_PATH}/bin/fill_pig.sh -i sanlm${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
 ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
 
-####proceed as normal. 
+###proceed as normal. 
 
 
 cd ${dir}
@@ -367,3 +368,49 @@ cd ${dir}
  ${PCP_PATH}/bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
  done
 fi
+
+
+
+
+if [ ${steps} == "precon_art" ];then
+
+
+echo "Will include cerebellum and non cortical structures. meant for figures and art projects"
+
+# ##### parse outputs of brain extraction. Save warps. and convert. 
+# ##### make mri directory here and mri/transforms
+# ##### convert ants linear transforms to lta's and fsl transforms
+# ##### move warps to transforms folder as well later for filling as well
+cd ${brain_dir}
+
+pwd
+
+brain=$(basename ${brain_dir})_brain.nii.gz
+mask=${brain/.nii.gz/_mask.nii.gz}
+
+
+echo  ${PCP_PATH}/bin/fill_pig.sh -i sanlm${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
+${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -c y
+
+###proceed as normal. 
+
+
+cd ${dir}
+
+ for hemi in lh rh;do
+
+ ### potentially change file to work as function.  
+ ${PCP_PATH}/bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
+ done
+fi
+
+
+
+
+
+
+
+
+
+
+
