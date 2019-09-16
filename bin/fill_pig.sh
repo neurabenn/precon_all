@@ -17,6 +17,7 @@ Usage() {
 
     echo " "
     echo " Optional Arguments"  ###### potentially add option to discard intermediate files? 
+    echo " -c y                     include cerebellum and brain stem"
     echo "Example:  `basename $0` -i Denoised_Brain_T1_0N4.nii.gz -a pig "
     echo " "
     exit 1
@@ -32,8 +33,9 @@ RED=$(echo -en '\033[00;31m') #Red for error messages
 ####variables to be filled via options
 img=""
 animal=""
+cb=""
 #### parse them options
-while getopts ":i:a:" opt ; do 
+while getopts ":i:a:c:" opt ; do 
 	case $opt in
 		i) i=1;
 			img=`echo $OPTARG`
@@ -51,6 +53,9 @@ while getopts ":i:a:" opt ; do
 		  	Usage
 		  	exit 1
 		  	;;
+    c)
+      cb=`echo $OPTARG`
+            ;;
 
 	esac 
 done
@@ -64,17 +69,26 @@ pwd
 T1=$(basename ${img})
 echo ${T1}
 
-########################### EDIT THIS TO SEARCH FOR A MASKS FOLDER WITH WHICH TO PERFORM EX VIVO FILLING ################
-
+echo "here we go"
 
 ##### making the brain mask image. Must be brain extracted
-cp ${T1} mri/rawavg.nii.gz
-cp ${T1} mri/brainmask.nii.gz 
-
+if [ -f mri/filled-pretess127.mgz ];then
+    echo "not first run"
+    if [ -d mri/orig_res ];then
+        echo "data was previously resampled"
+        dim=$(fslinfo mri/brainmask.nii.gz |grep 'pixdim1'|awk '{print $2}')
+        echo "resampling to " ${dim}
+        cp ${T1} mri/brainmask.nii.gz 
+        $FSLDIR/bin/flirt -in mri/brainmask.nii.gz  -ref mri/brainmask.nii.gz  -out mri/brainmask.nii.gz  -applyisoxfm ${dim}
+    fi
+else
+    cp ${T1} mri/rawavg.nii.gz
+    cp ${T1} mri/brainmask.nii.gz 
+fi
 cd mri/ 
 if [ -f wm_orig.nii.gz ];then :; else  echo "Missing WM segmentation" `pwd`"/wm_orig.nii.gz";echo  "Please provide this required WM segmentation"; exit 1;fi
 
- anat=`pwd`
+anat=`pwd`
 anat=${anat/mri/}$T1
 echo ${anat}
 mri_dir=`pwd`
@@ -87,14 +101,7 @@ if [ -f ${mri_dir}/wm_hand_edit.nii.gz ];then
 
 fi
 echo "##### THE WM SEG BEING USED IS " "${wm_seg}" " ##########"
-# if [ -d ${mri_dir}/orig_res ];then
-#   echo "not the first run of filling. getting original WM segmentation for filling"
-#   for i in `ls ${mri_dir}/orig_res/*.gz`;do 
-#     cp ${i} ${mri_dir}/
 
-#   done 
-
-#fi
 echo "#####Converting FSL transform to LTA#####"
 pwd
 ##convert fsl registrations for later use. note if planning to later resample to isometric these will be resampled to the isometric standard image####
@@ -104,42 +111,42 @@ pwd
 
 
 echo "warping standard masks for filling"
+if [ -f filled-pretess127.mgz ];then
+    echo "masks have already been registered"
+else
 
-if [ ${animal} != "masks" ];then 
+    if [ ${animal} != "masks" ];then 
   ####deprecated. previously used actual translation to standard space.
   #### if wishing to make a group subject than make sure the commented out code is run to have an actual standard space matrix
   #lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
   #lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
   #### new version uses identitiy matrix. Sep 13 2019
-  lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
-  lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
+    lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
+    lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
 
-  for mask in `ls $PCP_PATH/standards/${animal}/fill/*gz`;do 
-    out=$(basename $mask)
-    $FSLDIR/bin/flirt -in ${mask} -ref ${anat} -out ${mri_dir}/${out} -interp nearestneighbour -applyxfm -init ${mri_dir}/transforms/std2str.mat 
-  done
-
-
-else
-
-  echo " #######################USING SINGLE SUBJECT MASKS################"
-
-lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${anat}
-lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${anat}
+    for mask in `ls $PCP_PATH/standards/${animal}/fill/*gz`;do 
+        out=$(basename $mask)
+        $FSLDIR/bin/flirt -in ${mask} -ref ${anat} -out ${mri_dir}/${out} -interp nearestneighbour -applyxfm -init ${mri_dir}/transforms/std2str.mat 
+    done
 
 
- for mask in `ls ..//masks/*gz`;do 
-    out=$(basename $mask)
-    echo ${out}
-    $FSLDIR/bin/flirt -in ${mask} -ref ${anat} -out ${mri_dir}/${out} -interp nearestneighbour -applyxfm -init ${mri_dir}/transforms/std2str.mat 
-  done
+    else
+
+    echo " #######################USING SINGLE SUBJECT MASKS################"
+
+    lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${anat}
+    lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${anat}
 
 
+    for mask in `ls ..//masks/*gz`;do 
+        out=$(basename $mask)
+        echo ${out}
+        $FSLDIR/bin/flirt -in ${mask} -ref ${anat} -out ${mri_dir}/${out} -interp nearestneighbour -applyxfm -init ${mri_dir}/transforms/std2str.mat 
+    done
 
-
+    fi
 fi
-
-##################################################################################################################### end necesary edits
+# ##################################################################################################################### end necesary edits
 
 
 echo "###### Normalizing T1 Intensities ######"
@@ -166,9 +173,9 @@ echo "###### FILLING  WM #######"
   fslmaths wm+SC -bin -mul 110 wm_110+SC
 
  fslmaths nu -sub nu_wm -add wm_110 brain -odt int
- #fslmaths nu -sub wm+SC_sub -add wm_110+SC brain -odt int
+ 
  fslmaths nu -sub wm+SC_sub -add wm_110+SC brainmask -odt int
-#cp brain.nii.gz brainmask.nii.gz
+
 
  echo "############# creating WM images for tesselation ###########"
 
@@ -179,7 +186,16 @@ echo "###### FILLING  WM #######"
  fslmaths wm_nosubc -mul 110 wm_nosubc 
  fslmaths sub_cort -mul 250 sub_cort250
  fslmaths wm_nosubc -add sub_cort250 wm
- fslmaths "${wm_seg}" -sub non_cort -thr 0 -bin  wm_pre_fill
+
+if [[ "$cb" == "y" ]];then 
+    echo "leaving in cb for figures/art"
+    fslmaths non_cort -mul 0 blank
+    fslmaths "${wm_seg}" -sub blank -bin  wm_pre_fill
+else
+    echo "removing non cortical substance"
+    fslmaths "${wm_seg}" -sub non_cort -thr 0 -bin  wm_pre_fill
+fi
+
   fslmaths wm_pre_fill -add sub_cort250  -bin  wm_pre_fill
 
  fslmaths wm_pre_fill -fillh wm_pre_fill
@@ -188,7 +204,7 @@ echo "###### FILLING  WM #######"
  fslmaths wm_pre_fill -mas right_hem -mul 127 wm_right
  fslmaths wm_left -add wm_right filled
 
-
+pwd
 
 # ###conform images to isometric space if not already isometric
 echo "###determining if image isometric. If not, resample to lowest dimension specified in header######"
@@ -196,9 +212,9 @@ echo "###determining if image isometric. If not, resample to lowest dimension sp
 #### however freesurfer works best on isometric data. So here we check and convert to isometric at native resolution,
 function iso_check () {
 
-  x=`fslinfo ${anat} |grep 'pixdim1'|awk '{print $2}'`
-  y=`fslinfo ${anat} |grep 'pixdim2'|awk '{print $2}'`
-  z=`fslinfo ${anat} |grep 'pixdim3'|awk '{print $2}'`
+  x=`fslinfo brainmask.nii.gz  |grep 'pixdim1'|awk '{print $2}'`
+  y=`fslinfo brainmask.nii.gz  |grep 'pixdim2'|awk '{print $2}'`
+  z=`fslinfo brainmask.nii.gz  |grep 'pixdim3'|awk '{print $2}'`
 
     ###determine if all dimensions the same. key value to return as decides whether or not to apply transforms
   resample=`echo "$x == $y && $x == $z" |bc -l`
@@ -213,15 +229,17 @@ function iso_check () {
   for img in  `ls *.nii.gz`;do 
     $FSLDIR/bin/flirt -in ${img} -ref ${img} -out ${img} -applyisoxfm ${max} -interp nearestneighbour -noresampblur -omat ${mri_dir}/transforms/isometrize.mat
   done
-  cp -r ${mri_dir}/transforms ${mri_dir}orig_res/transforms
+  cp -r ${mri_dir}/transforms ${mri_dir}/orig_res/transforms
 
 
   cp ${mri_dir}/orig_res/rawavg.nii.gz ${mri_dir}/rawavg.nii.gz
 
   $FSLDIR/bin/convert_xfm  -omat  ${mri_dir}/transforms/inverse_iso.mat -inverse ${mri_dir}/transforms/isometrize.mat
   $FSLDIR/bin/convert_xfm -omat ${mri_dir}/transforms/str2std_iso.mat -concat ${mri_dir}/transforms/str2std.mat ${mri_dir}/transforms/inverse_iso.mat
-  lta_convert --infsl ${mri_dir}/transforms/str2std_iso.mat  --outlta ${mri_dir}/transforms/talairach.lta --src brain.nii.gz --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
-  lta_convert --infsl ${mri_dir}/transforms/str2std_iso.mat  --outmni ${mri_dir}/transforms/talairach.xfm --src brain.nii.gz --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
+  lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat  --outlta ${mri_dir}/transforms/talairach.lta --src brain.nii.gz --trg brain.nii.gz
+  lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat  --outmni ${mri_dir}/transforms/talairach.xfm --src brain.nii.gz --trg brain.nii.gz
+else
+    echo "input data is isometric or has already been resampled"
 fi
 
 }
