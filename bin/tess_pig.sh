@@ -123,8 +123,8 @@ SUBJECTS_DIR=$(echo $(cd $(dirname "${subj}") && pwd -P))/
  mris_calc -o ${hemi}.area.mid ${hemi}.area.mid div 2
  mris_calc -o ${hemi}.volume ${hemi}.area.mid mul ${hemi}.thickness
 
+mris_expand -thickness ${hemi}.white 0.5 ${hemi}.graymid 
 
-
-
-
-
+for surf in white pial graymid;do 
+    mris_convert --to-scanner ${hemi}.${surf} ${hemi}.${surf}.surf.gii
+done

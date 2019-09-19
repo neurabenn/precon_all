@@ -242,7 +242,24 @@ echo ${PCP_PATH}bin/tess_pig.sh -s ${ruta}  -h lh #-n 5
  ### potentially change file to work as function.  
   ${PCP_PATH}/bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
  done
+
+
+SUBJECTS_DIR=${dir}
+echo $SUBJECTS_DIR
+echo ${brain_dir}
+subj=$(basename ${brain_dir})
+# # ### generate cortex label from masks 
+cd $SUBJECTS_DIR
+pwd
+${PCP_PATH}/bin/cortex_labelgen.sh -s ${subj}
+# # # #### create a fake aseg to get the ribbon 
+cp ${subj}/mri/brain.mgz ${subj}/mri/aseg.mgz 
+# # # # ### generate the FS ribbon mask
+
+mris_volmask --save_ribbon $(basename ${brain_dir})
+
  fi
+
 
 ##########################################################################################################################################
 ##########################################################################################################################################
@@ -269,7 +286,7 @@ echo ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
 fi
 
 echo " "
-echo "extraction already run."
+echo "extraction run."
 
 ##########################################################################################################################################
 ##########################################################################################################################################
@@ -328,6 +345,22 @@ cd ${dir}
  ${PCP_PATH}/bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
 done
 ### precon3 parameters. still need to add control checks to check for segmentation files. 
+
+SUBJECTS_DIR=${dir}
+echo $SUBJECTS_DIR
+echo ${brain_dir}
+subj=$(basename ${brain_dir})
+# # ### generate cortex label from masks 
+cd $SUBJECTS_DIR
+pwd
+echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj}" |bash
+# # # #### create a fake aseg to get the ribbon 
+cp ${subj}/mri/brain.mgz ${subj}/mri/aseg.mgz 
+# # # # ### generate the FS ribbon mask
+
+mris_volmask --save_ribbon $(basename ${brain_dir})
+
+
 fi
 
 
@@ -367,50 +400,30 @@ cd ${dir}
  ### potentially change file to work as function.  
  ${PCP_PATH}/bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
  done
+
+SUBJECTS_DIR=${dir}
+echo $SUBJECTS_DIR
+echo ${brain_dir}
+subj=$(basename ${brain_dir})
+# # ### generate cortex label from masks 
+cd $SUBJECTS_DIR
+pwd
+echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj}" |bash
+# # # #### create a fake aseg to get the ribbon 
+cp ${subj}/mri/brain.mgz ${subj}/mri/aseg.mgz 
+# # # # ### generate the FS ribbon mask
+
+mris_volmask --save_ribbon $(basename ${brain_dir})
+
 fi
-
-
 
 
 if [ ${steps} == "precon_art" ];then
-
+##### generatses stl files of white and pial surfaces
+### also white and gray raw  of non cortical matter to add in for visualization
 
 echo "Will include cerebellum and non cortical structures. meant for figures and art projects"
 
-# ##### parse outputs of brain extraction. Save warps. and convert. 
-# ##### make mri directory here and mri/transforms
-# ##### convert ants linear transforms to lta's and fsl transforms
-# ##### move warps to transforms folder as well later for filling as well
 cd ${brain_dir}
-
-pwd
-
-brain=$(basename ${brain_dir})_brain.nii.gz
-mask=${brain/.nii.gz/_mask.nii.gz}
-
-
-echo  ${PCP_PATH}/bin/fill_pig.sh -i sanlm${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
-${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -c y
-
-###proceed as normal. 
-
-
-cd ${dir}
-
- for hemi in lh rh;do
-
- ### potentially change file to work as function.  
- ${PCP_PATH}/bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
- done
+$PCP_PATH/bin/art.sh
 fi
-
-
-
-
-
-
-
-
-
-
-

@@ -40,23 +40,24 @@ done
 
 SUBJECTS_DIR=`pwd`
 
- mkdir ${subj}label
- mkdir ${subj}mri/cort_labels
-cd ${subj}mri/
-## do the left side
-fslmaths wm_left.nii.gz -mas sub_cort_str.nii.gz cort_labels/subc_left
+ mkdir -p ${subj}/label
+ mkdir -p ${subj}/mri/cort_labels
+cd ${subj}/mri/
+
+# do the left side
+fslmaths wm_left.nii.gz -mas sub_cort.nii.gz cort_labels/subc_left
 fslmaths wm_left.nii.gz -sub cort_labels/subc_left -bin cort_labels/wm_left_cort
-fslmaths cort_labels/wm_left_cort -dilM cort_labels/wm_left_cort_dil #### dilate the label to remove spotting of mask
+fslmaths cort_labels/wm_left_cort -dilM -dilM cort_labels/wm_left_cort_dil #### dilate the label to remove spotting of mask
 fslmaths cort_labels/wm_left_cort_dil -mul 2  cort_labels/wm_left_cort_dil
 
 
-## now the right side
+# ## now the right side
 
-fslmaths wm_right.nii.gz -mas sub_cort_str.nii.gz cort_labels/subc_right
+fslmaths wm_right.nii.gz -mas sub_cort.nii.gz cort_labels/subc_right
 fslmaths wm_right.nii.gz -sub cort_labels/subc_right -bin cort_labels/wm_right_cort
-fslmaths cort_labels/wm_right_cort -dilM cort_labels/wm_right_cort_dil
+fslmaths cort_labels/wm_right_cort -dilM -dilM cort_labels/wm_right_cort_dil
 
-##gen whole brain wm labels
+#gen whole brain wm labels
 
 fslmaths cort_labels/wm_left_cort_dil -add cort_labels/wm_right_cort_dil cort_labels/wm_labels
 
