@@ -6,7 +6,5 @@ the original template paper can be found here: https://www.sciencedirect.com/sci
 
 and the doi is: 10.1016/j.neuroimage.2017.04.063
 
-
-If using the NMT and you'll be doing a full precon_all then make sure to use a lot of memory in the cluster. 
-
-Alternately you could try downsampling the NMT and all associated masks prior to running it. 
+By default we use a downsampled NMT image 0.75 isotropic instead of 0.25 to save space. 
+However the original 0.25 isotropic iamges are also here. In case of doubt download from their site. 
