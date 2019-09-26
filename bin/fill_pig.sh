@@ -122,7 +122,8 @@ else
 
     for mask in `ls $PCP_PATH/standards/${animal}/fill/*gz`;do 
         out=$(basename $mask)
-        $FSLDIR/bin/flirt -in ${mask} -ref ${anat} -out ${mri_dir}/${out} -interp nearestneighbour -applyxfm -init ${mri_dir}/transforms/std2str.mat 
+        $FSLDIR/bin/flirt -in ${mask} -ref ${anat} -out ${mri_dir}/${out}  -applyxfm -init ${mri_dir}/transforms/std2str.mat 
+        $FSLDIR/bin/fslmaths ${mri_dir}/${out}  -bin ${mri_dir}/${out}  
     done
 
 
