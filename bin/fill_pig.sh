@@ -53,10 +53,6 @@ while getopts ":i:a:c:" opt ; do
 		  	Usage
 		  	exit 1
 		  	;;
-    c)
-      cb=`echo $OPTARG`
-            ;;
-
 	esac 
 done
 
@@ -187,16 +183,11 @@ echo "###### FILLING  WM #######"
  fslmaths sub_cort -mul 250 sub_cort250
  fslmaths wm_nosubc -add sub_cort250 wm
 
-if [[ "$cb" == "y" ]];then 
-    echo "leaving in cb for figures/art"
-    fslmaths non_cort -mul 0 blank
-    fslmaths "${wm_seg}" -sub blank -bin  wm_pre_fill
-else
-    echo "removing non cortical substance"
-    fslmaths "${wm_seg}" -sub non_cort -thr 0 -bin  wm_pre_fill
-fi
 
-  fslmaths wm_pre_fill -add sub_cort250  -bin  wm_pre_fill
+fslmaths "${wm_seg}" -sub non_cort -thr 0 -bin  wm_pre_fill
+
+
+fslmaths wm_pre_fill -add sub_cort250  -bin  wm_pre_fill
 
  fslmaths wm_pre_fill -fillh wm_pre_fill
 
@@ -246,10 +237,16 @@ fi
 iso_check
 echo "######final conversion for surface generation######"
 pwd 
+
+$FSLDIR/bin/fslmaths brain -mas left_hem left_brain
+$FSLDIR/bin/fslmaths brain -mas right_hem right_brain
+
 mri_convert brain.nii.gz  brain.mgz
  mri_convert brain.nii.gz  orig.mgz
  mri_convert brainmask.nii.gz brainmask.mgz   ###determining if image isometric.gz  brainmask.mgz
  mri_convert brain.nii.gz  brain.finalsurfs.mgz
+ mri_convert left_brain.nii.gz  lh.brain.finalsurfs.mgz
+ mri_convert right_brain.nii.gz  rh.brain.finalsurfs.mgz
  mri_convert brain.nii.gz  T1.mgz
  mri_convert brain.nii.gz  nu.mgz
  mri_convert wm.nii.gz wm.mgz

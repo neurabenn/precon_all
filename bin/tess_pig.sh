@@ -104,7 +104,9 @@ SUBJECTS_DIR=$(echo $(cd $(dirname "${subj}") && pwd -P))/
   mris_remove_intersection ${hemi}.orig ${hemi}.orig
 
   cd ${SUBJECTS_DIR}
- mris_make_surfaces -noaseg -noaparc -mgz -T1 brain.finalsurfs ${subj} ${hemi} 
+
+
+ mris_make_surfaces -noaseg -noaparc -mgz -T1 ${hemi}.brain.finalsurfs ${subj} ${hemi} 
 
  cd $surf_dir
  mris_smooth -n 3 -nw -seed 1234 ${hemi}.white ${hemi}.smoothwm
