@@ -108,6 +108,8 @@ brain_dir=${dir}${name/.nii.gz/}
 # echo ${dir}
 
 
+##### add a source of freesurfer. this should help with final steps in generating cortical labels and volmask. 
+source $FREESURFER_HOME/SetUpFreeSurfer.sh
 #### determine that the call matches the predefined options
 if [ ${steps} == "precon_all" ] || [ ${steps} == "precon_1" ] || [ ${steps} == "precon_2" ] || [ ${steps} == "precon_3" ] || [ ${steps} == "precon_art" ];then echo "${GREEN}performing ${steps} on ${img}${NC}"
 else 
