@@ -41,7 +41,8 @@ animal=""
 no_extract=""
 help=""
 
-while getopts ":i:r:a:t:n:h" opt ; do 
+while getopts ":i:r:a:t:nh" opt ; do 
+    
 	case $opt in
 		i) i=1;
 			img=`echo $OPTARG`
@@ -62,8 +63,8 @@ while getopts ":i:r:a:t:n:h" opt ; do
     t)  
             thresh=`echo $OPTARG`
                 ;;
-     n)  
-            no_extract=`echo $OPTARG`
+     n)  n=1;
+          no_extract="y"
                 ;;
 		\?)
 		  echo "Invalid option:  -$OPTARG" 
@@ -129,7 +130,7 @@ if [[  ${no_extract} == "y"  ]];then
     brain_dir=${dir}${name/.nii.gz/}
     #### apply brain masks
     cd ${brain_dir}
-
+    
     brain=$(basename ${brain_dir})_brain.nii.gz
     mask=${brain/.nii.gz/_mask.nii.gz}
 
@@ -177,12 +178,9 @@ if [ ${steps} == "precon_all" ];then
 ####insert a check for directories to see if the subject has already been processed. if already processed don't run, or alternately delete inital outputs and rerun. #####
 
 # echo ${PCP_PATH}bin/bet_pig.sh -i ${img} -o ${name/.nii.gz/}_brain
-echo "this is right. your on the surf_repo. have fun editing."
 
 mkdir -p ${dir}${name/.nii.gz/}
 brain_dir=${dir}${name/.nii.gz/}
-
-
 
 echo ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
 ##### check for a preliminary alignment matrix first prior to running. sometimes this is necessary for difficult brains. 
