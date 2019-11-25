@@ -127,6 +127,10 @@ SUBJECTS_DIR=$(echo $(cd $(dirname "${subj}") && pwd -P))/
 
 mris_expand -thickness ${hemi}.white 0.5 ${hemi}.graymid 
 
-for surf in white pial graymid sphere inflated;do 
+for surf in white pial graymid;do 
     mris_convert --to-scanner ${hemi}.${surf} ${hemi}.${surf}.surf.gii
 done
+
+wb_command  -surface-average lh.midthickness.surf.gii -surf lh.white.surf.gii -surf lh.pial.surf.gii
+
+wb_command  -surface-average rh.midthickness.surf.gii -surf rh.white.surf.gii -surf rh.pial.surf.gii

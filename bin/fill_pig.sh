@@ -90,8 +90,24 @@ echo ${anat}
 mri_dir=`pwd`
 
 wm_seg=wm_orig.nii.gz
-if [ -f ${mri_dir}/wm_hand_edit.nii.gz ];then 
+if [ -f ${mri_dir}/wm_hand_edit.nii.gz ];then
+
 	wm_seg=wm_hand_edit.nii.gz
+  ######## check if isotropic. if not, resample to isotropis
+  x=`fslinfo ${wm_seg}  |grep 'pixdim1'|awk '{print $2}'`
+  y=`fslinfo ${wm_seg}  |grep 'pixdim2'|awk '{print $2}'`
+  z=`fslinfo ${wm_seg}  |grep 'pixdim3'|awk '{print $2}'`
+
+  resample=`echo "$x == $y && $x == $z" |bc -l`
+  if [ ${resample} -eq 0 ];then
+    order=`echo -e "${x}\n${y}\n${z}" |sort -g -r`
+    max=`echo ${order} |awk '{print $1}'`
+    echo "wm_hand_edit will be  resampled to " ${max} "isometric"
+    $FSLDIR/bin/flirt -in ${wm_seg} -ref ${wm_seg} -out ${wm_seg} -applyisoxfm ${max} -interp nearestneighbour -noresampblur
+  else
+    echo "WM hand edit is already isotropic"
+  fi
+
 	echo "using a hand edited WM segmentation for fill"
 	mri_convert ${mri_dir}/wm_hand_edit.nii.gz ${mri_dir}/wm_hand_edit.mgz
 
@@ -154,8 +170,10 @@ upper=`fslstats brainmask -R | cut -d ' ' -f2-`
  
 echo "###### FILLING  WM #######"
 
+fslmaths brainmask -div $upper -mul 150 nu -odt int ###original. commented out for carmel 
 
- fslmaths brainmask -div $upper -mul 150 nu -odt int
+ # fslmaths brainmask -div $upper -mul 300 nu -odt int #edited for carmel
+
 
  fslmaths nu -mas "${wm_seg}" nu_wm
 
