@@ -105,7 +105,7 @@ echo ${img}
 echo ${mask}
 
 #### truncate image instensity prior to bias field correction 
- ${ANTSPATH}ImageMath 3 ${img/.nii.gz/}_0N4.nii.gz TruncateImageIntensity $img 0.025 0.995 256 $mask 1
+ ${ANTSPATH}/ImageMath 3 ${img/.nii.gz/}_0N4.nii.gz TruncateImageIntensity $img 0.025 0.995 256 $mask 1
 
  T1=${img/.nii.gz/}_0N4.nii.gz
 echo ${T1}
@@ -113,14 +113,14 @@ echo ${T1}
 #  Perform Bias field correction
 if [[ ${shrink} == "" ]];then
 
-	 echo ${ANTSPATH}N4BiasFieldCorrection -d 3 -i $T1 -x $mask  -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 0
-	 ${ANTSPATH}N4BiasFieldCorrection -d 3 -i $T1   -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 0 
+	 echo ${ANTSPATH}/N4BiasFieldCorrection -d 3 -i $T1 -x $mask  -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 0
+	 ${ANTSPATH}/N4BiasFieldCorrection -d 3 -i $T1   -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 0 
 	 fslmaths ${T1} -mas ${mask} ${T1}
 	
 else
 
-	echo ${ANTSPATH}N4BiasFieldCorrection -d 3 -i $T1 -x $mask  -s ${shrink}  -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 0
-	${ANTSPATH}N4BiasFieldCorrection -d 3 -i $T1   -s ${shrink}  -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 0 
+	echo ${ANTSPATH}/N4BiasFieldCorrection -d 3 -i $T1 -x $mask  -s ${shrink}  -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 0
+	${ANTSPATH}/N4BiasFieldCorrection -d 3 -i $T1   -s ${shrink}  -c [100x100x100x100,0.0000000001] -b [200] -o $T1 --verbose 0 
 	fslmaths ${T1} -mas ${mask} ${T1}
  fi
 

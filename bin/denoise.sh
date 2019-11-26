@@ -75,7 +75,7 @@ T1=$(basename $img)
 
 
 echo "Using ANTS to denoise image"
-${ANTSPATH}DenoiseImage -d 3 -i ${T1} -o sanlm_${T1} -v 1
+${ANTSPATH}/DenoiseImage -d 3 -i ${T1} -o sanlm_${T1} -v 1
 
 
 

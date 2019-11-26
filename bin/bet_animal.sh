@@ -116,9 +116,9 @@ mkdir -p mri/transforms
 echo ${T1}
 
 
-${ANTSPATH}N4BiasFieldCorrection -d 3 -i ${T1}  -c [100x100x100x100,0.0000000001] -b [200] -o ${T1} --verbose 0
-$ANTSPATH/DenoiseImage -d 3 -i ${T1} -o sanlm_${T1}
-$ANTSPATH/ImageMath  3 sanlm_${T1} TruncateImageIntensity sanlm_${T1} 0.05 0.999 
+${ANTSPATH}/N4BiasFieldCorrection -d 3 -i ${T1}  -c [100x100x100x100,0.0000000001] -b [200] -o ${T1} --verbose 0
+${ANTSPATH}/DenoiseImage -d 3 -i ${T1} -o sanlm_${T1}
+${ANTSPATH}/ImageMath  3 sanlm_${T1} TruncateImageIntensity sanlm_${T1} 0.05 0.999 
 
 if [[  -f ${premat}  ]] ;then
 
@@ -172,7 +172,7 @@ echo " End brain extraction "
 
 #  if [ "${denoise}" == "y" ];then
 
-#  	${ANTSPATH}DenoiseImage -d 3 -i ${T1} -o ${out}/sanlm_${T1} -v 1
+#  	${ANTSPATH}/DenoiseImage -d 3 -i ${T1} -o ${out}/sanlm_${T1} -v 1
 # 	T1=sanlm_${T1}
 # # 	###### prepare extraction variables ########### 
 
@@ -185,7 +185,7 @@ echo " End brain extraction "
  
 # ###extract the brain. $ANTSPATH must be defined	
 # # pwd
-# ${ANTSPATH}antsBrainExtraction.sh -d 3 -a ${T1}  -e ${temp}  -m ${prob_mask} -o  ${out}/${prefix}/${prefix} -f $reg_mask -k 1
+# ${ANTSPATH}/antsBrainExtraction.sh -d 3 -a ${T1}  -e ${temp}  -m ${prob_mask} -o  ${out}/${prefix}/${prefix} -f $reg_mask -k 1
 # # pwd
 # # #rename output to ${file}_brain / ${file}_brain_mask
 # if [ "${denoise}" == "y" ];then
