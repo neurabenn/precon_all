@@ -12,6 +12,10 @@ Usage() {
     echo " Compulsory Arguments "
     echo "-i <Denoised_Brain_T1_0N4.nii.gz>                  : Image must include nii or nii.gz file extension "
     echo "-a  < animal >                  : searches for directory of standards "
+    echo "-L  Left side only"
+    echo "-R  Right Side only "
+
+
   
   
 
@@ -20,7 +24,39 @@ Usage() {
     echo " -c y                     include cerebellum and brain stem"
     echo "Example:  `basename $0` -i Denoised_Brain_T1_0N4.nii.gz -a pig "
     echo " "
-    exit 1
+    
+}
+
+function iso_check () {
+  ############ fucntion checks if image is isotropic, and if not resamples to the largest dimension present in the image. 
+img=${1}
+  x=`fslinfo ${img}  |grep 'pixdim1'|awk '{print $2}'`
+  y=`fslinfo ${img}  |grep 'pixdim2'|awk '{print $2}'`
+  z=`fslinfo ${img}  |grep 'pixdim3'|awk '{print $2}'`
+
+    ###determine if all dimensions the same. key value to return as decides whether or not to apply transforms
+  resample=`echo "$x == $y && $x == $z" |bc -l`
+  if [ ${resample} -eq 0 ];then
+    echo "###################### RESAMPLE FACTOR IS " ${resample}
+    order=`echo -e "${x}\n${y}\n${z}" |sort -g -r`
+    max=`echo ${order} |awk '{print $1}'`
+    echo ${img} "will be resampled to " ${max} "isometric"
+    mkdir -p orig_res/transforms
+    cp ${img} orig_res/$(basename ${img})
+    ### do the resampling
+    $FSLDIR/bin/flirt -in ${img} -ref ${img} -out ${img} -applyisoxfm ${max} -interp nearestneighbour -noresampblur -omat ${mri_dir}/transforms/isometrize.mat
+    cp  ${mri_dir}/transforms/* ${mri_dir}/orig_res/transforms
+
+  $FSLDIR/bin/convert_xfm  -omat  ${mri_dir}/transforms/inverse_iso.mat -inverse ${mri_dir}/transforms/isometrize.mat
+  $FSLDIR/bin/convert_xfm -omat ${mri_dir}/transforms/str2std_iso.mat -concat ${mri_dir}/transforms/str2std.mat ${mri_dir}/transforms/inverse_iso.mat
+  lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat  --outlta ${mri_dir}/transforms/talairach.lta --src ${mri_dir}/brain.nii.gz --trg ${mri_dir}/brain.nii.gz
+  lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat  --outmni ${mri_dir}/transforms/talairach.xfm --src ${mri_dir}/brain.nii.gz --trg ${mri_dir}/brain.nii.gz
+  
+  #resample to isometric resolution for surface generation. #note if this option is selected the talairach transforms will also be updated. ####
+else
+    echo ${img} "is isotropic or has already been resampled"
+fi
+
 }
 
 if [ $# -lt 2 ] ; then Usage; exit 0; fi #### check that command is not called empty
@@ -28,14 +64,14 @@ if [ $# -lt 2 ] ; then Usage; exit 0; fi #### check that command is not called e
 NC=$(echo -en '\033[0m') #NC
 RED=$(echo -en '\033[00;31m') #Red for error messages
 
-
-
 ####variables to be filled via options
 img=""
 animal=""
 cb=""
+L_only=""
+R_only=""
 #### parse them options
-while getopts ":i:a:c:" opt ; do 
+while getopts ":i:a:c:LR" opt ; do 
 	case $opt in
 		i) i=1;
 			img=`echo $OPTARG`
@@ -47,6 +83,12 @@ while getopts ":i:a:c:" opt ; do
       animal=`echo $OPTARG`
       if [ ! -d ${PCP_PATH}/standards/${animal} ] && [ ${animal} != "masks" ] ;then echo " "; echo " ${RED}CHECK STNADARDS FILE PATH ${NC}"; Usage; exit 1;fi ### check input file exists
         ;;
+     L)
+          L_only="y"
+                ;;
+      R)  R=1
+          R_only="y"
+                ;;
 		\?)
 		  echo "Invalid option:  -$OPTARG" >&2
 
@@ -56,7 +98,16 @@ while getopts ":i:a:c:" opt ; do
 	esac 
 done
 
+
 if [ "$animal" = "" ];then echo "specify animal please";Usage;exit 1;fi
+
+
+
+side=(left right)
+if [[ ${L_only} == "y" ]];then echo "Left only"; side=(left);fi
+if [[ ${R_only} == "y" ]];then echo "Right only "; side=(right);fi
+echo ${side[*]}
+
 
 subj=$(dirname ${img}) 
 cd $subj
@@ -67,20 +118,21 @@ echo ${T1}
 
 echo "here we go"
 
-##### making the brain mask image. Must be brain extracted
-if [ -f mri/filled-pretess127.mgz ];then
+#### making the brain mask image. Must be brain extracted
+if [ -f mri/brain.finalsurfs.mgz ];then
     echo "not first run"
     if [ -d mri/orig_res ];then
-        echo "data was previously resampled"
-        dim=$(fslinfo mri/brainmask.nii.gz |grep 'pixdim1'|awk '{print $2}')
-        echo "resampling to " ${dim}
+        echo "This is not the first run of precon"
+        # dim=$(fslinfo mri/brainmask.nii.gz |grep 'pixdim1'|awk '{print $2}')
+        # echo "data was resampled to " ${dim} "isotropic"
         cp ${T1} mri/brainmask.nii.gz 
-        $FSLDIR/bin/flirt -in mri/brainmask.nii.gz  -ref mri/brainmask.nii.gz  -out mri/brainmask.nii.gz  -applyisoxfm ${dim}
+        # $FSLDIR/bin/flirt -in mri/brainmask.nii.gz  -ref mri/brainmask.nii.gz  -out mri/brainmask.nii.gz  -applyisoxfm ${dim}
     fi
 else
     cp ${T1} mri/rawavg.nii.gz
     cp ${T1} mri/brainmask.nii.gz 
 fi
+
 cd mri/ 
 if [ -f wm_orig.nii.gz ];then :; else  echo "Missing WM segmentation" `pwd`"/wm_orig.nii.gz";echo  "Please provide this required WM segmentation"; exit 1;fi
 
@@ -91,31 +143,14 @@ mri_dir=`pwd`
 
 wm_seg=wm_orig.nii.gz
 if [ -f ${mri_dir}/wm_hand_edit.nii.gz ];then
-
+  iso_check ${mri_dir}/wm_hand_edit.nii.gz 
 	wm_seg=wm_hand_edit.nii.gz
-  ######## check if isotropic. if not, resample to isotropis
-  x=`fslinfo ${wm_seg}  |grep 'pixdim1'|awk '{print $2}'`
-  y=`fslinfo ${wm_seg}  |grep 'pixdim2'|awk '{print $2}'`
-  z=`fslinfo ${wm_seg}  |grep 'pixdim3'|awk '{print $2}'`
-
-  resample=`echo "$x == $y && $x == $z" |bc -l`
-  if [ ${resample} -eq 0 ];then
-    order=`echo -e "${x}\n${y}\n${z}" |sort -g -r`
-    max=`echo ${order} |awk '{print $1}'`
-    echo "wm_hand_edit will be  resampled to " ${max} "isometric"
-    $FSLDIR/bin/flirt -in ${wm_seg} -ref ${wm_seg} -out ${wm_seg} -applyisoxfm ${max} -interp nearestneighbour -noresampblur
-  else
-    echo "WM hand edit is already isotropic"
-  fi
-
 	echo "using a hand edited WM segmentation for fill"
 	mri_convert ${mri_dir}/wm_hand_edit.nii.gz ${mri_dir}/wm_hand_edit.mgz
-
 fi
 echo "##### THE WM SEG BEING USED IS " "${wm_seg}" " ##########"
 
 echo "#####Converting FSL transform to LTA#####"
-pwd
 ##convert fsl registrations for later use. note if planning to later resample to isometric these will be resampled to the isometric standard image####
 
 #### use inital syn warps from brain extraction to split hemispheres and fill subcortical and non cortical material. #######
@@ -167,7 +202,19 @@ echo "###### Normalizing T1 Intensities ######"
 upper=`fslstats brainmask -R | cut -d ' ' -f2-`
  echo "upper intensity value is " $upper 
 
- 
+pwd
+
+# ###conform images to isometric space if not already isometric
+echo "###determining if image isometric. If not, resample to lowest dimension specified in header######"
+#### we do this here to ensure that segmentations are performed at maximum resolution. 
+#### however freesurfer works best on isometric data. So here we check and convert to isometric at native resolution,
+
+
+for img in `ls *.nii.gz`;do 
+  iso_check ${img}
+done
+
+
 echo "###### FILLING  WM #######"
 
 fslmaths brainmask -div $upper -mul 150 nu -odt int ###original. commented out for carmel 
@@ -175,15 +222,15 @@ fslmaths brainmask -div $upper -mul 150 nu -odt int ###original. commented out f
  # fslmaths brainmask -div $upper -mul 300 nu -odt int #edited for carmel
 
 
- fslmaths nu -mas "${wm_seg}" nu_wm
+ fslmaths nu -mas ${wm_seg} nu_wm
 
 
 
-  fslmaths "${wm_seg}" -add sub_cort -bin wm+SC
+  fslmaths ${wm_seg} -add sub_cort -bin wm+SC
   fslmaths nu -mas wm+SC wm+SC_sub
 
 
-  fslmaths "${wm_seg}" -mul 110 wm_110
+  fslmaths ${wm_seg} -mul 110 wm_110
 
   fslmaths wm+SC -bin -mul 110 wm_110+SC
 
@@ -197,75 +244,74 @@ fslmaths brainmask -div $upper -mul 150 nu -odt int ###original. commented out f
  ### create WM image with sub_c intensity differences #####
 
  echo "######### filling WM ########"
- fslmaths "${wm_seg}" -sub sub_cort wm_nosubc
+ fslmaths  ${wm_seg} -sub sub_cort wm_nosubc
  fslmaths wm_nosubc -mul 110 wm_nosubc 
  fslmaths sub_cort -mul 250 sub_cort250
  fslmaths wm_nosubc -add sub_cort250 wm
 
 
-fslmaths "${wm_seg}" -sub non_cort -thr 0 -bin  wm_pre_fill
+fslmaths ${wm_seg} -sub non_cort -thr 0 -bin  wm_pre_fill
 
 
 fslmaths wm_pre_fill -add sub_cort250  -bin  wm_pre_fill
 
  fslmaths wm_pre_fill -fillh wm_pre_fill
 
- fslmaths wm_pre_fill -mas left_hem -mul 255 wm_left
- fslmaths wm_pre_fill -mas right_hem -mul 127 wm_right
- fslmaths wm_left -add wm_right filled
-
-pwd
-
-# ###conform images to isometric space if not already isometric
-echo "###determining if image isometric. If not, resample to lowest dimension specified in header######"
-#### we do this here to ensur that segmentations are performed at maximum resolution. 
-#### however freesurfer works best on isometric data. So here we check and convert to isometric at native resolution,
-function iso_check () {
-
-  x=`fslinfo brainmask.nii.gz  |grep 'pixdim1'|awk '{print $2}'`
-  y=`fslinfo brainmask.nii.gz  |grep 'pixdim2'|awk '{print $2}'`
-  z=`fslinfo brainmask.nii.gz  |grep 'pixdim3'|awk '{print $2}'`
-
-    ###determine if all dimensions the same. key value to return as decides whether or not to apply transforms
-  resample=`echo "$x == $y && $x == $z" |bc -l`
-  if [ ${resample} -eq 0 ];then
-    order=`echo -e "${x}\n${y}\n${z}" |sort -g -r`
-    max=`echo ${order} |awk '{print $1}'`
-    echo "Data will be resampled to " ${max} "isometric"
-    mkdir -p orig_res
-    for i in `ls *gz`;do cp ${i} ./orig_res/$(basename $i) ; done 
-  
-  #resample to isometric resolution for surface generation. #note if this option is selected the talairach transforms will also be updated. ####
-  for img in  `ls *.nii.gz`;do 
-    $FSLDIR/bin/flirt -in ${img} -ref ${img} -out ${img} -applyisoxfm ${max} -interp nearestneighbour -noresampblur -omat ${mri_dir}/transforms/isometrize.mat
-  done
-  cp -r ${mri_dir}/transforms ${mri_dir}/orig_res/transforms
 
 
-  cp ${mri_dir}/orig_res/rawavg.nii.gz ${mri_dir}/rawavg.nii.gz
+########## fill left and right or only one side depnding on input
 
-  $FSLDIR/bin/convert_xfm  -omat  ${mri_dir}/transforms/inverse_iso.mat -inverse ${mri_dir}/transforms/isometrize.mat
-  $FSLDIR/bin/convert_xfm -omat ${mri_dir}/transforms/str2std_iso.mat -concat ${mri_dir}/transforms/str2std.mat ${mri_dir}/transforms/inverse_iso.mat
-  lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat  --outlta ${mri_dir}/transforms/talairach.lta --src brain.nii.gz --trg brain.nii.gz
-  lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat  --outmni ${mri_dir}/transforms/talairach.xfm --src brain.nii.gz --trg brain.nii.gz
+ for hemi in "${side[@]}";do
+    if [[ ${hemi} == "left" ]];then
+      echo $FSLDIR/bin/fslmaths wm_pre_fill -mas ${hemi}_hem -mul 255 wm_${hemi}
+      $FSLDIR/bin/fslmaths wm_pre_fill -mas ${hemi}_hem -mul 255 wm_${hemi}
+    else
+      if [[ ${hemi} == "right" ]];then
+        echo $FSLDIR/bin/fslmaths wm_pre_fill -mas right_hem -mul 127 wm_${hemi}
+        $FSLDIR/bin/fslmaths wm_pre_fill -mas ${hemi}_hem -mul 127 wm_${hemi}
+      fi
+    fi
+done
+
+
+echo "FILLING THIS SIDE " 
+echo "${side[@]}"
+
+#### fill depending on if both sides or a single side are selected. 
+if [[ "${#side[@]}" -eq 2 ]];then 
+  $FSLDIR/bin/fslmaths wm_left -add wm_right filled
 else
-    echo "input data is isometric or has already been resampled"
+  echo  "${side[@]}"
+  if [[ "${side[@]}" == left ]];then 
+    $FSLDIR/bin/fslmaths wm_left -mul 0 wm_right 
+    $FSLDIR/bin/fslmaths wm_left -add wm_right filled
+    rm wm_right.nii.gz
+  fi
+
+  if [[ "${side[@]}" == right ]];then 
+    $FSLDIR/bin/fslmaths wm_right -mul 0 wm_left 
+    $FSLDIR/bin/fslmaths wm_right -add wm_left filled
+    rm wm_left.nii.gz
+  fi
 fi
 
-}
-iso_check
 echo "######final conversion for surface generation######"
-pwd 
 
-$FSLDIR/bin/fslmaths brain -mas left_hem left_brain
-$FSLDIR/bin/fslmaths brain -mas right_hem right_brain
+for hemi in "${side[@]}";do
+  $FSLDIR/bin/fslmaths brain -mas ${hemi}_hem ${hemi}_brain
+  if [[ ${hemi} == "left" ]];then 
+    mri_convert left_brain.nii.gz  lh.brain.finalsurfs.mgz
+  fi
+  if [[ ${hemi} == "right" ]];then 
+    mri_convert right_brain.nii.gz  rh.brain.finalsurfs.mgz
+  fi
 
-mri_convert brain.nii.gz  brain.mgz
+done
+
+ mri_convert brain.nii.gz  brain.mgz
  mri_convert brain.nii.gz  orig.mgz
  mri_convert brainmask.nii.gz brainmask.mgz   ###determining if image isometric.gz  brainmask.mgz
  mri_convert brain.nii.gz  brain.finalsurfs.mgz
- mri_convert left_brain.nii.gz  lh.brain.finalsurfs.mgz
- mri_convert right_brain.nii.gz  rh.brain.finalsurfs.mgz
  mri_convert brain.nii.gz  T1.mgz
  mri_convert brain.nii.gz  nu.mgz
  mri_convert wm.nii.gz wm.mgz

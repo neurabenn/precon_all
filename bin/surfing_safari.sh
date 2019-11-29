@@ -13,6 +13,8 @@ Usage() {
     echo "-a <animal model> must be should be the name of a folder in the $PCP_PATH/standards/directory. Ex. $PCP_PATH/standards/pig" 
      echo "-n no brain extraction. Using a previously extracted brain. only runs linear transforms. " 
     echo " -t < Segmentation threshold default is 0.5 >"
+    echo " -L  Left Hemisphere only"
+    echo " -R  Right Hemisphere only"
     echo "Optional Arguments" 
     echo "-h     help "
     echo " "
@@ -39,9 +41,12 @@ img=""
 steps=""
 animal=""
 no_extract=""
+ants_seg=""
+L_only=""
+R_only=""
 help=""
 
-while getopts ":i:r:a:t:nh" opt ; do 
+while getopts ":i:r:a:t:nsLRh" opt ; do 
     
 	case $opt in
 		i) i=1;
@@ -66,6 +71,15 @@ while getopts ":i:r:a:t:nh" opt ; do
      n)  n=1;
           no_extract="y"
                 ;;
+    s)
+          ants_seg="y"
+                ;;
+    L)
+          L_only="y"
+                ;;
+    R)
+          R_only="y"
+                ;;
 		\?)
 		  echo "Invalid option:  -$OPTARG" 
 
@@ -88,15 +102,24 @@ if [ ! -f ${img} ];then echo " "; echo " ${RED}CHECK INPUT FILE PATH ${NC}"; Usa
 if [ "${img: -4}" == ".nii" ] || [ "${img: -7}" == ".nii.gz" ] ;then : ; else Usage; exit 1 ;fi ### check format of image is nifti
 
 
+###### default thresholiding of partial volume estimates. 
+###### recommended 0.5 for FASt and 0.1 for ANTs
 
-
-
-# echo "img"
-if [[ ${thresh} == "" ]];then 
-    thresh=0.5
+if [[ ${thresh} == "" ]] && [[ ${ants_seg} == "y" ]];then 
+	#### ants threshold
+    thresh=0.1
 else
+	#### FSL threshold
+	if [[ ${thresh} == "" ]];then
+		thresh=0.5
+	fi
  :
 fi
+side=(lh rh)
+if [[ ${L_only} == "y" ]];then echo "Left only"; side=(lh);fi
+if [[ ${R_only} == "y" ]];then echo "Right only"; side=(rh);fi
+echo ${side[*]}
+
 
 # echo ${steps}
 name=$(basename ${img})
@@ -134,9 +157,11 @@ if [[  ${no_extract} == "y"  ]];then
     brain=$(basename ${brain_dir})_brain.nii.gz
     mask=${brain/.nii.gz/_mask.nii.gz}
 
-    $FSLDIR/bin/fslmaths ${img}  ${brain}
-    mkdir -p ${brain_dir}/mri/transforms
 
+    $FSLDIR/bin/fslmaths ${img}  ${brain}
+    $FSLDIR/bin/fslmaths ${brain} -thr 0 -bin ${mask}
+    mkdir -p ${brain_dir}/mri/transforms
+     
     if [ ${steps} == "precon_all" ];then 
         steps=precon_2
     fi
@@ -192,7 +217,7 @@ else
 fi
 
 echo " "
-echo "extraction already run. now play with the rest"
+echo "###### Already Extracted ########"
 
 ##### parse outputs of brain extraction. Save warps. and convert. 
 ##### make mri directory here and mri/transforms
@@ -205,7 +230,12 @@ pwd
 brain=$(basename ${brain_dir})_brain.nii.gz
 mask=${brain/.nii.gz/_mask.nii.gz}
 ls ${brain_dir}
-## prepare brain image for segmentation. Denoise and N4 bias correction.
+
+
+
+
+echo "##### DEBUGGING  inserting ants compatibilty"
+# prepare brain image for segmentation. Denoise and N4 bias correction.
  ${ANTSPATH}/DenoiseImage -d 3 -i ${brain} -o sanlm_${brain} -v 1
 
 
@@ -213,12 +243,29 @@ echo ${PCP_PATH}/bin/N4_pig.sh -i sanlm_${brain} -x ${mask}
 ${ANTSPATH}/N4BiasFieldCorrection -d 3 -i sanlm_${brain}   -c [100x100x100x100,0.0000000001] -b [200] -o sanlm_${brain/.nii.gz/_0N4.nii.gz}  --verbose 0 
 
 if [ -d $PCP_PATH/standards/${animal}/seg_priors ];then
+
     echo " USING SEGMENTATION PRIORS "
-${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh}
-else
-    echo " NO SEGMENTATION PRIORS "
-    ${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh}
+    if [[  ${ants_seg} == "y"  ]];then
+    	echo "Using ANTs Atropos"
+    	${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh} -s
+
+    else
+    	echo "Using FSL FAST "
+		${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh}
+	fi
+	else
+	echo " NO SEGMENTATION PRIORS "
+	if [[  ${ants_seg} == "y"  ]];then 
+		echo "Using Ants Atropos"
+		${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh} -s 
+	else
+		echo "Using FSL FAST"
+    	
+    	${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh}
+    fi
 fi
+
+
 
 #### conform outputs to isometric space.
 
@@ -227,22 +274,31 @@ fi
 # #### alternately add script to check for isometric. if not resample to largest value.
 # ### get all paths ready for fill stage
 
-echo "time to fill add isometric resampling in this step"
-echo  ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
-${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
 
-###proceed as normal. 
+if [[ ${L_only} == "y" ]];then 
+    echo "only filling left"
+    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -L
+fi
 
+if [[ ${R_only} == "y" ]];then
+    echo "only filling right" 
+    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -R
+fi
+echo ##### third option 
 
+if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
+   
+    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
+fi
+
+##### lets build the surfaces now
 cd ${dir}
-pwd
-echo ${PCP_PATH}bin/tess_pig.sh -s ${ruta}  -h lh #-n 5 
- for hemi in lh rh;do
- 
- ### potentially change file to work as function.  
-  ${PCP_PATH}/bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
- done
 
+
+ for hemi in "${side[@]}";do
+ ### potentially change file to work as function.  
+ ${PCP_PATH}/bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
+ done
 
 SUBJECTS_DIR=${dir}
 echo $SUBJECTS_DIR
@@ -251,14 +307,30 @@ subj=$(basename ${brain_dir})
 # # ### generate cortex label from masks 
 cd $SUBJECTS_DIR
 pwd
-${PCP_PATH}/bin/cortex_labelgen.sh -s ${subj}
+
+if [[ ${L_only} == "y" ]];then 
+    echo "only making left labels"
+echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} -L" |bash
+fi
+
+if [[ ${R_only} == "y" ]];then 
+    echo "only making right labels"
+echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} -R" |bash
+fi
+
+if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
+    echo "only making left and right labels"
+echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} " |bash
+fi
+
 # # # #### create a fake aseg to get the ribbon 
 cp ${subj}/mri/brain.mgz ${subj}/mri/aseg.mgz 
 # # # # ### generate the FS ribbon mask
+if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
+    mris_volmask --save_ribbon $(basename ${brain_dir})
+fi
 
-mris_volmask --save_ribbon $(basename ${brain_dir})
-
- fi
+fi
 
 
 ##########################################################################################################################################
@@ -308,43 +380,71 @@ pwd
 brain=$(basename ${brain_dir})_brain.nii.gz
 mask=${brain/.nii.gz/_mask.nii.gz}
 
-## prepare brain image for segmentation. Denoise and N4 bias correction.
-${ANTSPATH}/DenoiseImage -d 3 -i ${brain} -o sanlm_${brain} 
+# prepare brain image for segmentation. Denoise and N4 bias correction.
+
+echo "##### DEBUGGING  inserting ants compatibilty"
+# prepare brain image for segmentation. Denoise and N4 bias correction.
+ ${ANTSPATH}/DenoiseImage -d 3 -i ${brain} -o sanlm_${brain} -v 1
 
 
 echo ${PCP_PATH}/bin/N4_pig.sh -i sanlm_${brain} -x ${mask}
 ${ANTSPATH}/N4BiasFieldCorrection -d 3 -i sanlm_${brain}   -c [100x100x100x100,0.0000000001] -b [200] -o sanlm_${brain/.nii.gz/_0N4.nii.gz}  --verbose 0 
 
 if [ -d $PCP_PATH/standards/${animal}/seg_priors ];then
+
     echo " USING SEGMENTATION PRIORS "
-    ${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh}
-else
-    echo " NO SEGMENTATION PRIORS "
-    ${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh}
+    if [[  ${ants_seg} == "y"  ]];then
+    	echo "Using ANTs Atropos"
+    	${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh} -s
+
+    else
+    	echo "Using FSL FAST "
+		${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh}
+	fi
+	else
+	echo " NO SEGMENTATION PRIORS "
+	if [[  ${ants_seg} == "y"  ]];then 
+		echo "Using Ants Atropos"
+		${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh} -s 
+	else
+		echo "Using FSL FAST"
+    	
+    	${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh}
+    fi
 fi
 
-#### conform outputs to isometric space.
+### conform outputs to isometric space.
 
 
-#### concatenate original affine (flirt format) transform with an applyisoxfm 0.8 / native resolution
-#### alternately add script to check for isometric. if not resample to largest value.
-### get all paths ready for fill stage
-
-echo "time to fill add isometric resampling in this step"
-echo  ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
-${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
-
-####proceed as normal. 
+### concatenate original affine (flirt format) transform with an applyisoxfm 0.8 / native resolution
+### alternately add script to check for isometric. if not resample to largest value.
+## get all paths ready for fill stage
 
 
+if [[ ${L_only} == "y" ]];then 
+    echo "only filling left"
+    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -L
+fi
+
+if [[ ${R_only} == "y" ]];then
+    echo "only filling right" 
+    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -R
+fi
+echo ##### third option 
+
+if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
+   
+    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
+fi
+
+##### lets build the surfaces now
 cd ${dir}
- 
- for hemi in lh rh;do
 
+
+ for hemi in "${side[@]}";do
  ### potentially change file to work as function.  
  ${PCP_PATH}/bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
-done
-### precon3 parameters. still need to add control checks to check for segmentation files. 
+ done
 
 SUBJECTS_DIR=${dir}
 echo $SUBJECTS_DIR
@@ -353,14 +453,28 @@ subj=$(basename ${brain_dir})
 # # ### generate cortex label from masks 
 cd $SUBJECTS_DIR
 pwd
-echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj}" |bash
+
+if [[ ${L_only} == "y" ]];then 
+    echo "only making left labels"
+echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} -L" |bash
+fi
+
+if [[ ${R_only} == "y" ]];then 
+    echo "only making right labels"
+echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} -R" |bash
+fi
+
+if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
+    echo "only making left and right labels"
+echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} " |bash
+fi
+
 # # # #### create a fake aseg to get the ribbon 
 cp ${subj}/mri/brain.mgz ${subj}/mri/aseg.mgz 
 # # # # ### generate the FS ribbon mask
-
-mris_volmask --save_ribbon $(basename ${brain_dir})
-
-
+if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
+    mris_volmask --save_ribbon $(basename ${brain_dir})
+fi
 fi
 
 
@@ -387,16 +501,27 @@ brain=$(basename ${brain_dir})_brain.nii.gz
 mask=${brain/.nii.gz/_mask.nii.gz}
 
 
-echo  ${PCP_PATH}/bin/fill_pig.sh -i sanlm${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
-${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
+if [[ ${L_only} == "y" ]];then 
+    echo "only filling left"
+    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -L
+fi
 
-###proceed as normal. 
+if [[ ${R_only} == "y" ]];then
+    echo "only filling right" 
+    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -R
+fi
+echo ##### third option 
 
+if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
+   
+    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
+fi
 
+##### lets build the surfaces now
 cd ${dir}
 
- for hemi in lh rh;do
 
+ for hemi in "${side[@]}";do
  ### potentially change file to work as function.  
  ${PCP_PATH}/bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
  done
@@ -408,12 +533,28 @@ subj=$(basename ${brain_dir})
 # # ### generate cortex label from masks 
 cd $SUBJECTS_DIR
 pwd
-echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj}" |bash
+
+if [[ ${L_only} == "y" ]];then 
+    echo "only making left labels"
+echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} -L" |bash
+fi
+
+if [[ ${R_only} == "y" ]];then 
+    echo "only making right labels"
+echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} -R" |bash
+fi
+
+if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
+    echo "only making left and right labels"
+echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} " |bash
+fi
+
 # # # #### create a fake aseg to get the ribbon 
 cp ${subj}/mri/brain.mgz ${subj}/mri/aseg.mgz 
 # # # # ### generate the FS ribbon mask
-
-mris_volmask --save_ribbon $(basename ${brain_dir})
+if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
+    mris_volmask --save_ribbon $(basename ${brain_dir})
+fi
 
 fi
 

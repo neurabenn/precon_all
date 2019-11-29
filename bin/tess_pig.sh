@@ -131,6 +131,4 @@ for surf in white pial graymid;do
     mris_convert --to-scanner ${hemi}.${surf} ${hemi}.${surf}.surf.gii
 done
 
-wb_command  -surface-average lh.midthickness.surf.gii -surf lh.white.surf.gii -surf lh.pial.surf.gii
-
-wb_command  -surface-average rh.midthickness.surf.gii -surf rh.white.surf.gii -surf rh.pial.surf.gii
+wb_command  -surface-average ${hemi}.midthickness.surf.gii -surf ${hemi}.white.surf.gii -surf ${hemi}.pial.surf.gii
