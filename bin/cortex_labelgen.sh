@@ -76,7 +76,12 @@ fslmaths wm_${lado}.nii.gz -mas sub_cort.nii.gz cort_labels/subc_${lado}
 echo "######################################################"
 fslmaths wm_${lado}.nii.gz -sub cort_labels/subc_${lado} -bin cort_labels/wm_${lado}_cort
 echo "######################################################"
-fslmaths cort_labels/wm_${lado}_cort -dilM -dilM cort_labels/wm_${lado}_cort_dil #### dilate the label to remove spotting of mask
+fslmaths cort_labels/wm_${lado}_cort -dilM -dilM -dilM cort_labels/wm_${lado}_cort_dil #### dilate the label to remove spotting of mask
+fslmaths cort_labels/wm_${lado}_cort_dil -mas cort_labels/subc_${lado} cort_labels/temp
+fslmaths cort_labels/temp -mul 1 -bin cort_labels/temp
+
+fslmaths cort_labels/wm_${lado}_cort_dil -sub cort_labels/temp  cort_labels/wm_${lado}_cort_dil
+
 
 if [[ ${lado} == "left" ]];then
 	echo fslmaths cort_labels/wm_${lado}_cort_dil -mul 2  cort_labels/wm_${lado}_cort_dil
@@ -133,7 +138,7 @@ for hem in "${hemi[@]}";do
 	if [[ hem == "rh " ]];then 
 		id=1
 	else
-		id=2
+		id=1
 	fi
 	#### create the surfacelabels
 	mri_vol2label --i wm_labels.mgz  --id ${id} --v wm_labels.mgz --l ${hem}.cort.label
@@ -144,7 +149,7 @@ for hem in "${hemi[@]}";do
 
 	mri_vol2surf --mov ${hem}.cort_vol.mgz  --ref brain.mgz --hemi ${hem} --o ${hem}.cort_srf.mgh --regheader ${subj}
 
-	mri_vol2label --i ${hem}.cort_srf.mgh --id 1 --surf ${subj}  ${hem} --l ../../label/${hem}.cortex
+	mri_vol2label --i ${hem}.cort_srf.mgh --id ${id} --surf ${subj}  ${hem} --l ../../label/${hem}.cortex
 
 done
 

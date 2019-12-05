@@ -113,7 +113,7 @@ if [ "$priors" = "" ];then
 		echo "the threshold is " ${thresh}
 		mask=`ls *brain_mask*`
 		##### doing the segmentation
-		${ANTSPATH}/antsAtroposN4.sh -d 3  -x ${mask} -a ${ruta}/${T1} -c 3 -o seg/
+		${ANTSPATH}/antsAtroposN4.sh -d 3  -x ${mask} -a ${ruta}/${T1} -c 3 -o seg/ -w 0.25 
 		$FSLDIR/bin/fslmaths ./seg/SegmentationPosteriors3.nii.gz -thr ${thresh} -bin mri/wm_orig
 	else
 
@@ -156,10 +156,23 @@ echo "### priors are being used. ADDING ANTS HERE####"
 	mask=`ls *brain_mask*`
 	## warp the priors for use with ants. this step isn't nececessary for FAST
 	
-	$FSLDIR/bin/applywarp -i ${priors}/csf.nii.gz  -r ${T1} --premat=${ruta}/mri/transforms/std2str.mat -o ./seg/priors1.nii.gz
-	$FSLDIR/bin/applywarp -i ${priors}/gm.nii.gz  -r ${T1} --premat=${ruta}/mri/transforms/std2str.mat -o ./seg/priors2.nii.gz
-	$FSLDIR/bin/applywarp -i ${priors}/wm.nii.gz  -r ${T1} --premat=${ruta}/mri/transforms/std2str.mat -o ./seg/priors3.nii.gz
-	${ANTSPATH}/antsAtroposN4.sh -d 3  -x ${mask} -a ${ruta}/${T1} -c 3 -o seg/ -p ./seg/priors%d.nii.gz 
+	if [ -f ${ruta}/mri/transforms/std2str_warp.nii.gz ];then
+		##### if a non linear warp exists use it on the priors
+		echo "##### warping priors via on linear warp #####"
+		$FSLDIR/bin/applywarp -i ${priors}/csf.nii.gz  -r ${T1} -w ${ruta}/mri/transforms/std2str_warp.nii.gz  -o ./seg/priors1.nii.gz
+		$FSLDIR/bin/applywarp -i ${priors}/gm.nii.gz  -r ${T1} -w ${ruta}/mri/transforms/std2str_warp.nii.gz  -o ./seg/priors2.nii.gz
+		$FSLDIR/bin/applywarp -i ${priors}/wm.nii.gz  -r ${T1} -w ${ruta}/mri/transforms/std2str_warp.nii.gz  -o ./seg/priors3.nii.gz 
+		$FSLDIR/bin/fslmaths ./seg/priors3.nii.gz  -thr 0.01 -bin ./seg/priors3.nii.gz 
+	else
+		echo "##### using linear transform of priors #####"
+		$FSLDIR/bin/applywarp -i ${priors}/csf.nii.gz  -r ${T1} --premat=${ruta}/mri/transforms/std2str.mat -o ./seg/priors1.nii.gz
+		$FSLDIR/bin/applywarp -i ${priors}/gm.nii.gz  -r ${T1} --premat=${ruta}/mri/transforms/std2str.mat -o ./seg/priors2.nii.gz
+		$FSLDIR/bin/applywarp -i ${priors}/wm.nii.gz  -r ${T1} --premat=${ruta}/mri/transforms/std2str.mat -o ./seg/priors3.nii.gz 
+		$FSLDIR/bin/fslmaths ./seg/priors3.nii.gz  -thr 0.01 -bin ./seg/priors3.nii.gz 
+	fi
+
+	$FSLDIR/bin/fslmaths ./seg/priors3.nii.gz -bin ./seg/priors3.nii.gz
+	${ANTSPATH}/antsAtroposN4.sh -d 3  -x ${mask} -a ${ruta}/${T1} -c 3 -o seg/ -p ./seg/priors%d.nii.gz -w 0.5
 	$FSLDIR/bin/fslmaths ./seg/SegmentationPosteriors3.nii.gz -thr ${thresh} -bin mri/wm_orig
 
 	

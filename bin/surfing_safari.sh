@@ -104,7 +104,6 @@ if [ "${img: -4}" == ".nii" ] || [ "${img: -7}" == ".nii.gz" ] ;then : ; else Us
 
 ###### default thresholiding of partial volume estimates. 
 ###### recommended 0.5 for FASt and 0.1 for ANTs
-
 if [[ ${thresh} == "" ]] && [[ ${ants_seg} == "y" ]];then 
 	#### ants threshold
     thresh=0.1
@@ -115,6 +114,8 @@ else
 	fi
  :
 fi
+echo ${thresh}
+
 side=(lh rh)
 if [[ ${L_only} == "y" ]];then echo "Left only"; side=(lh);fi
 if [[ ${R_only} == "y" ]];then echo "Right only"; side=(rh);fi
@@ -265,14 +266,12 @@ if [ -d $PCP_PATH/standards/${animal}/seg_priors ];then
     fi
 fi
 
+cd ${brain_dir}
 
+pwd
 
-#### conform outputs to isometric space.
-
-
-# #### concatenate original affine (flirt format) transform with an applyisoxfm 0.8 / native resolution
-# #### alternately add script to check for isometric. if not resample to largest value.
-# ### get all paths ready for fill stage
+brain=$(basename ${brain_dir})_brain.nii.gz
+mask=${brain/.nii.gz/_mask.nii.gz}
 
 
 if [[ ${L_only} == "y" ]];then 
@@ -329,6 +328,7 @@ cp ${subj}/mri/brain.mgz ${subj}/mri/aseg.mgz
 if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
     mris_volmask --save_ribbon $(basename ${brain_dir})
 fi
+
 
 fi
 
@@ -420,6 +420,13 @@ fi
 ### alternately add script to check for isometric. if not resample to largest value.
 ## get all paths ready for fill stage
 
+cd ${brain_dir}
+
+pwd
+
+brain=$(basename ${brain_dir})_brain.nii.gz
+mask=${brain/.nii.gz/_mask.nii.gz}
+
 
 if [[ ${L_only} == "y" ]];then 
     echo "only filling left"
@@ -475,6 +482,8 @@ cp ${subj}/mri/brain.mgz ${subj}/mri/aseg.mgz
 if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
     mris_volmask --save_ribbon $(basename ${brain_dir})
 fi
+
+
 fi
 
 
