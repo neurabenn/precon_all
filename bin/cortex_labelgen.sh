@@ -76,18 +76,17 @@ fslmaths wm_${lado}.nii.gz -mas sub_cort.nii.gz cort_labels/subc_${lado}
 echo "######################################################"
 fslmaths wm_${lado}.nii.gz -sub cort_labels/subc_${lado} -bin cort_labels/wm_${lado}_cort
 echo "######################################################"
-fslmaths cort_labels/wm_${lado}_cort -dilM -dilM -dilM cort_labels/wm_${lado}_cort_dil #### dilate the label to remove spotting of mask
+fslmaths cort_labels/wm_${lado}_cort -dilM -dilM -dilM -fillh cort_labels/wm_${lado}_cort_dil #### dilate the label to remove spotting of mask
 fslmaths cort_labels/wm_${lado}_cort_dil -mas cort_labels/subc_${lado} cort_labels/temp
 fslmaths cort_labels/temp -mul 1 -bin cort_labels/temp
 
 fslmaths cort_labels/wm_${lado}_cort_dil -sub cort_labels/temp  cort_labels/wm_${lado}_cort_dil
 
-
 if [[ ${lado} == "left" ]];then
-	echo fslmaths cort_labels/wm_${lado}_cort_dil -mul 2  cort_labels/wm_${lado}_cort_dil
-	fslmaths cort_labels/wm_${lado}_cort_dil -mul 2  cort_labels/wm_${lado}_cort_dil
+# 	echo fslmaths cort_labels/wm_${lado}_cort_dil -mul 2  cort_labels/wm_${lado}_cort_dil
+# 	fslmaths cort_labels/wm_${lado}_cort_dil -mul 2  cort_labels/wm_${lado}_cort_dil
 
-else
+# else
 	echo fslmaths cort_labels/wm_${lado}_cort_dil -mul 1  cort_labels/wm_${lado}_cort_dil
 
 	fslmaths cort_labels/wm_${lado}_cort_dil -mul 1  cort_labels/wm_${lado}_cort_dil
@@ -102,7 +101,7 @@ done
 # fslmaths cort_labels/wm_right_cort -dilM -dilM cort_labels/wm_right_cort_dil
 
 #gen whole brain wm labels
-
+echo "#### creating volumes #######"
 
 if [[ "${#side[@]}" -eq 2 ]];then 
 	fslmaths cort_labels/wm_left_cort_dil -add cort_labels/wm_right_cort_dil cort_labels/wm_labels
@@ -134,19 +133,20 @@ cd cort_labels/
 for hem in "${hemi[@]}";do
 	### fresh start 
 	mri_convert wm_labels.nii.gz wm_labels.mgz
+	id=1
 	#### get identifier value
-	if [[ hem == "rh " ]];then 
-		id=1
-	else
-		id=1
-	fi
+	# if [[ hem == "rh " ]];then 
+	# 	id=1
+	# else
+	# 	id=1
+	# fi
 	#### create the surfacelabels
 	mri_vol2label --i wm_labels.mgz  --id ${id} --v wm_labels.mgz --l ${hem}.cort.label
 	# echo ""
 	# pwd
 	mri_label2vol --label ${hem}.cort.label --temp ../brain.mgz  --o ${hem}.cort_vol.mgz --identity
 
-
+	echo "#### Generating Final Labels ####"
 	mri_vol2surf --mov ${hem}.cort_vol.mgz  --ref brain.mgz --hemi ${hem} --o ${hem}.cort_srf.mgh --regheader ${subj}
 
 	mri_vol2label --i ${hem}.cort_srf.mgh --id ${id} --surf ${subj}  ${hem} --l ../../label/${hem}.cortex
