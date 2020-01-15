@@ -168,8 +168,8 @@ else
   #lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
   #lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
   #### new version uses identitiy matrix. Sep 13 2019
-    lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
-    lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
+    lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${anat} 
+    lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${anat} 
     ##### editing in january 2020#####
     ##### current code means surface transform doesn't propoerly match volume#####
     ##### added line at 300 to hopefully correct ######
