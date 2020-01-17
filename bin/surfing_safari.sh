@@ -323,13 +323,6 @@ if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
 echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} " |bash
 fi
 
-# # # #### create a fake aseg to get the ribbon 
-cp ${subj}/mri/brain.mgz ${subj}/mri/aseg.mgz 
-# # # # ### generate the FS ribbon mask
-if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
-    mris_volmask --save_ribbon $(basename ${brain_dir})
-fi
-
 
 fi
 
@@ -477,12 +470,6 @@ if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
 echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} " |bash
 fi
 
-# # # #### create a fake aseg to get the ribbon 
-cp ${subj}/mri/brain.mgz ${subj}/mri/aseg.mgz 
-# # # # ### generate the FS ribbon mask
-if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
-    mris_volmask --save_ribbon $(basename ${brain_dir})
-fi
 
 
 fi
@@ -558,13 +545,7 @@ if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
     echo "making left and right labels"
 echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} " |bash
 fi
-exit 1
-# # # #### create a fake aseg to get the ribbon 
-cp ${subj}/mri/brain.mgz ${subj}/mri/aseg.mgz 
-# # # # ### generate the FS ribbon mask
-if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
-    mris_volmask --save_ribbon $(basename ${brain_dir})
-fi
+
 
 fi
 

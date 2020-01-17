@@ -54,9 +54,11 @@ if [[ ${L_only} == "y" ]];then echo "Left only"; side=(left);fi
 if [[ ${R_only} == "y" ]];then echo "Right only "; side=(right);fi
 echo ${side[*]}
 
+#### get hemisphere of interest if defined. 
+#### also creates a temporary file of the opposite hemisphere used to trick mris_volmask
 hemi=(lh rh)
-if [[ ${L_only} == "y" ]];then echo "LH only"; hemi=(lh);fi
-if [[ ${R_only} == "y" ]];then echo "RH only "; hemi=(rh);fi
+if [[ ${L_only} == "y" ]];then echo "LH only"; hemi=(lh); fill=rh;fi
+if [[ ${R_only} == "y" ]];then echo "RH only "; hemi=(rh); fill=lh;fi
 echo ${hemi[*]}
 
 
@@ -64,114 +66,48 @@ SUBJECTS_DIR=`pwd`
 
  mkdir -p ${subj}/label
  mkdir -p ${subj}/mri/cort_labels
-cd ${subj}/mri/
 
+cd ${subj}
 
+cp mri/brain.mgz mri/aseg.mgz 
 #### set up the volumetric labels 
-for lado in "${side[@]}";do
-	##### lado means side in spanish. sorry, lack of creativity
 
-echo "######################################################"
-fslmaths wm_${lado}.nii.gz -mas sub_cort.nii.gz cort_labels/subc_${lado}
-echo "######################################################"
-fslmaths wm_${lado}.nii.gz -sub cort_labels/subc_${lado} -bin cort_labels/wm_${lado}_cort
-echo "######################################################"
-fslmaths cort_labels/wm_${lado}_cort -dilM -dilM -dilM -fillh cort_labels/wm_${lado}_cort_dil #### dilate the label to remove spotting of mask
-fslmaths cort_labels/wm_${lado}_cort_dil -mas cort_labels/subc_${lado} cort_labels/temp
-fslmaths cort_labels/temp -mul 1 -bin cort_labels/temp
-
-fslmaths cort_labels/wm_${lado}_cort_dil -sub cort_labels/temp  cort_labels/wm_${lado}_cort_dil
-
-if [[ ${lado} == "left" ]];then
-# 	echo fslmaths cort_labels/wm_${lado}_cort_dil -mul 2  cort_labels/wm_${lado}_cort_dil
-# 	fslmaths cort_labels/wm_${lado}_cort_dil -mul 2  cort_labels/wm_${lado}_cort_dil
-
-# else
-	echo fslmaths cort_labels/wm_${lado}_cort_dil -mul 1  cort_labels/wm_${lado}_cort_dil
-
-	fslmaths cort_labels/wm_${lado}_cort_dil -mul 1  cort_labels/wm_${lado}_cort_dil
-fi
-
-done
-
-# # ## now the right side
-
-# fslmaths wm_right.nii.gz -mas sub_cort.nii.gz cort_labels/subc_right
-# fslmaths wm_right.nii.gz -sub cort_labels/subc_right -bin cort_labels/wm_right_cort
-# fslmaths cort_labels/wm_right_cort -dilM -dilM cort_labels/wm_right_cort_dil
-
-#gen whole brain wm labels
-echo "#### creating volumes #######"
-
-if [[ "${#side[@]}" -eq 2 ]];then 
-	fslmaths cort_labels/wm_left_cort_dil -add cort_labels/wm_right_cort_dil cort_labels/wm_labels
+len=`echo "${#side[@]}"`
+### check if doing both hemispheres
+if [[ ${len} -lt 2 ]];then 
+	echo "doing ${lado} only"
+	#create the dummy surfaces for volmask
+	cp surf/${hemi}.white surf/${fill}.white
+	cp surf/${hemi}.pial surf/${fill}.pial
+	echo "#############################"
+	### run volmask 
+	mris_volmask --save_ribbon ${subj}
+	### remove dummies
+	rm surf/${fill}.white 
+	rm surf/${fill}.pial 
+	### prep the volume to be converted to the cortex and subcortex label
+	mri_convert mri/ribbon.mgz mri/ribbon.nii.gz 
+	fslmaths mri/ribbon.nii.gz  -bin -sub mri/sub_cort.nii.gz -bin  mri/${hemi}.ribbon.nii.gz 
 else
-	if [[ "${side[@]}" == "left" ]];then
-		fslmaths cort_labels/wm_left_cort_dil -mul 0 cort_labels/wm_right_cort_dil
-		fslmaths cort_labels/wm_left_cort_dil -add cort_labels/wm_right_cort_dil cort_labels/wm_labels
-	fi
-
-	if [[ "${side[@]}" == "right" ]];then
-		fslmaths cort_labels/wm_right_cort_dil -mul 0 cort_labels/wm_left_cort_dil
-		fslmaths cort_labels/wm_left_cort_dil -add cort_labels/wm_right_cort_dil cort_labels/wm_labels
-	fi
+	echo "doing both"
+	mris_volmask --save_ribbon ${subj}
+	echo ${hemi[*]}
+	mri_convert mri/ribbon.mgz mri/ribbon.nii.gz 
+	fslmaths mri/ribbon.nii.gz -mas mri/sub_cort.nii.gz tmp_subc.nii.gz 
+	fslmaths mri/ribbon.nii.gz -sub tmp_subc.nii.gz  mri/ribbon.nii.gz -odt int
+	fslmaths mri/ribbon.nii.gz -uthr 21 -bin  mri/${hemi[0]}.ribbon.nii.gz 
+	fslmaths mri/ribbon.nii.gz -thr 21 -bin   mri/${hemi[1]}.ribbon.nii.gz 
+	rm tmp_subc.nii.gz 
 fi
 
-###time to convert these volumes to surface labels
-echo "volumes created. converting to surfae labels"
-## left first
-cd cort_labels/
-
-	echo mri_convert wm_labels.nii.gz wm_labels.mgz
-	pwd
-	mri_convert wm_labels.nii.gz wm_labels.mgz
-	pwd
-	
-
-################### hemi 
-
-for hem in "${hemi[@]}";do
-	### fresh start 
-	mri_convert wm_labels.nii.gz wm_labels.mgz
-	id=1
-	#### get identifier value
-	# if [[ hem == "rh " ]];then 
-	# 	id=1
-	# else
-	# 	id=1
-	# fi
-	#### create the surfacelabels
-	mri_vol2label --i wm_labels.mgz  --id ${id} --v wm_labels.mgz --l ${hem}.cort.label
-	# echo ""
-	# pwd
-	mri_label2vol --label ${hem}.cort.label --temp ../brain.mgz  --o ${hem}.cort_vol.mgz --identity
-
-	echo "#### Generating Final Labels ####"
+#### go into the mri directory to get the ribbons ready for label gen
+cd mri/
+#### now do the cortex label generation from the ribbon masks  
+for i  in `ls ?h.ribbon.nii.gz`;do 
+	hem=${i/.ribbon.nii.gz}
+	mri_vol2label --i   ${hem}.ribbon.nii.gz --id 1 --v ${hem}.ribbon.nii.gz  --l ${hem}.cort.label
+	mri_label2vol --label ${hem}.cort.label --temp brain.mgz  --o ${hem}.cort_vol.mgz --identity
 	mri_vol2surf --mov ${hem}.cort_vol.mgz  --ref brain.mgz --hemi ${hem} --o ${hem}.cort_srf.mgh --regheader ${subj}
-
-	mri_vol2label --i ${hem}.cort_srf.mgh --id ${id} --surf ${subj}  ${hem} --l ../../label/${hem}.cortex
-
+	mri_vol2label --i ${hem}.cort_srf.mgh --id 1  --surf ${subj}  ${hem}  --l ../label/${hem}.cortex
+	mri_vol2label --i ${hem}.cort_srf.mgh --id 0  --surf ${subj}  ${hem}  --l ../label/${hem}.subcortex
 done
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
