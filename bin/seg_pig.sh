@@ -112,9 +112,10 @@ if [ "$priors" = "" ];then
 		echo "in following dir"
 		echo "the threshold is " ${thresh}
 		mask=`ls *brain_mask*`
-		##### doing the segmentation
+		##### 
 		#### make sure extraction mask is binary prior to segmenting
 		$FSLDIR/bin/fslmaths ${mask} -bin seg/seg_mask.nii.gz
+		###### doing the segmentation
 		${ANTSPATH}/antsAtroposN4.sh -d 3  -x seg/seg_mask.nii.gz -a ${ruta}/${T1} -c 3 -o seg/ -w 0.25 
 		$FSLDIR/bin/fslmaths ./seg/SegmentationPosteriors3.nii.gz -thr ${thresh} -bin mri/wm_orig
 	else
