@@ -378,21 +378,22 @@ mask=${brain/.nii.gz/_mask.nii.gz}
 
 echo "##### DEBUGGING  inserting ants compatibilty"
 # prepare brain image for segmentation. Denoise and N4 bias correction.
- ${ANTSPATH}/DenoiseImage -d 3 -i ${brain} -o sanlm_${brain} -v 1
+ # ${ANTSPATH}/DenoiseImage -d 3 -i ${brain} -o sanlm_${brain} -v 1
 
 
 echo ${PCP_PATH}/bin/N4_pig.sh -i sanlm_${brain} -x ${mask}
-${ANTSPATH}/N4BiasFieldCorrection -d 3 -i sanlm_${brain}   -c [100x100x100x100,0.0000000001] -b [200] -o sanlm_${brain/.nii.gz/_0N4.nii.gz}  --verbose 0 
+# ${ANTSPATH}/N4BiasFieldCorrection -d 3 -i sanlm_${brain}   -c [100x100x100x100,0.0000000001] -b [200] -o sanlm_${brain/.nii.gz/_0N4.nii.gz}  --verbose 0 
 
 if [ -d $PCP_PATH/standards/${animal}/seg_priors ];then
 
     echo " USING SEGMENTATION PRIORS "
     if [[  ${ants_seg} == "y"  ]];then
-    	echo "Using ANTs Atropos"
+    	echo "Using ANTs Atropos with priors "
+    	pwd
     	${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh} -s
 
     else
-    	echo "Using FSL FAST "
+    	echo "Using FSL FAST  with priors"
 		${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh}
 	fi
 	else
@@ -406,9 +407,7 @@ if [ -d $PCP_PATH/standards/${animal}/seg_priors ];then
     	${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh}
     fi
 fi
-
 ### conform outputs to isometric space.
-
 
 ### concatenate original affine (flirt format) transform with an applyisoxfm 0.8 / native resolution
 ### alternately add script to check for isometric. if not resample to largest value.
