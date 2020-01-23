@@ -1,0 +1,5 @@
+(standard input):nvertices   642
+(standard input):nvertices   2562
+(standard input):nvertices   10242
+(standard input):nvertices   40962
+(standard input):nvertices   163842
