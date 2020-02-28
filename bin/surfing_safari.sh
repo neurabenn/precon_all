@@ -323,6 +323,13 @@ if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
 echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} " |bash
 fi
 
+# # # #### create a fake aseg to get the ribbon 
+cp ${subj}/mri/brain.mgz ${subj}/mri/aseg.mgz 
+# # # # ### generate the FS ribbon mask
+if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
+    mris_volmask --save_ribbon $(basename ${brain_dir})
+fi
+
 
 fi
 
@@ -388,12 +395,11 @@ if [ -d $PCP_PATH/standards/${animal}/seg_priors ];then
 
     echo " USING SEGMENTATION PRIORS "
     if [[  ${ants_seg} == "y"  ]];then
-    	echo "Using ANTs Atropos with priors "
-    	pwd
+    	echo "Using ANTs Atropos"
     	${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh} -s
 
     else
-    	echo "Using FSL FAST  with priors"
+    	echo "Using FSL FAST "
 		${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh}
 	fi
 	else
@@ -407,7 +413,9 @@ if [ -d $PCP_PATH/standards/${animal}/seg_priors ];then
     	${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh}
     fi
 fi
+
 ### conform outputs to isometric space.
+
 
 ### concatenate original affine (flirt format) transform with an applyisoxfm 0.8 / native resolution
 ### alternately add script to check for isometric. if not resample to largest value.
@@ -469,6 +477,12 @@ if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
 echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} " |bash
 fi
 
+# # # #### create a fake aseg to get the ribbon 
+cp ${subj}/mri/brain.mgz ${subj}/mri/aseg.mgz 
+# # # # ### generate the FS ribbon mask
+if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
+    mris_volmask --save_ribbon $(basename ${brain_dir})
+fi
 
 
 fi
@@ -544,7 +558,12 @@ if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
     echo "making left and right labels"
 echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} " |bash
 fi
-
+# # # #### create a fake aseg to get the ribbon 
+cp ${subj}/mri/brain.mgz ${subj}/mri/aseg.mgz 
+# # # # ### generate the FS ribbon mask
+if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
+    mris_volmask --save_ribbon $(basename ${brain_dir})
+fi
 
 fi
 
