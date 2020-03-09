@@ -126,6 +126,7 @@ if [ -f mri/brain.finalsurfs.mgz ];then
         # dim=$(fslinfo mri/brainmask.nii.gz |grep 'pixdim1'|awk '{print $2}')
         # echo "data was resampled to " ${dim} "isotropic"
         cp ${T1} mri/brainmask.nii.gz 
+        cp ${T1} mri/rawavg.nii.gz
         # $FSLDIR/bin/flirt -in mri/brainmask.nii.gz  -ref mri/brainmask.nii.gz  -out mri/brainmask.nii.gz  -applyisoxfm ${dim}
     fi
 else
@@ -200,10 +201,13 @@ else
 fi
 # ##################################################################################################################### end necesary edits
 
+for img in `ls *.nii.gz`;do 
+  iso_check ${img}
+done
 
 echo "###### Normalizing T1 Intensities ######"
 #### normalization of volume for use in freesurfer
-upper=`fslstats brainmask -R | cut -d ' ' -f2-`
+upper=`fslstats rawavg -R | cut -d ' ' -f2-`
  echo "upper intensity value is " $upper 
 
 pwd
@@ -214,14 +218,9 @@ echo "###determining if image isometric. If not, resample to lowest dimension sp
 #### however freesurfer works best on isometric data. So here we check and convert to isometric at native resolution,
 
 
-for img in `ls *.nii.gz`;do 
-  iso_check ${img}
-done
-
-
 echo "###### FILLING  WM #######"
 
-fslmaths brainmask -div $upper -mul 150 nu -odt int ###original. commented out for carmel 
+fslmaths rawavg -div $upper -mul 150 nu -odt int ###original. commented out for carmel 
 
  # fslmaths brainmask -div $upper -mul 300 nu -odt int #edited for carmel
 
