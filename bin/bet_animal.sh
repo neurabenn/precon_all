@@ -118,6 +118,8 @@ echo ${T1}
 
 #${ANTSPATH}/N4BiasFieldCorrection -d 3 -i ${T1}  -c [100x100x100x100,0.0000000001] -b [200] -o ${T1} --verbose 0
 ${ANTSPATH}/DenoiseImage -d 3 -i ${T1} -o sanlm_${T1}
+$FSLDIR/bin/fslmaths sanlm_${T1} -thr 0 sanlm_${T1}
+$FSLDIR/bin/fslorient -copyqform2sform sanlm_${T1}
 #${ANTSPATH}/ImageMath  3 sanlm_${T1} TruncateImageIntensity sanlm_${T1} 0.05 0.999 
 #### ants has a tendency to remove the sform which we need for fsl registerting. 
 
