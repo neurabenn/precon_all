@@ -131,4 +131,6 @@ for surf in white pial graymid inflated;do
     mris_convert --to-scanner ${hemi}.${surf} ${hemi}.${surf}.surf.gii
 done
 
+mris_convert ${hemi}.sphere  ${hemi}.sphere.surf.gii
+
 wb_command  -surface-average ${hemi}.midthickness.surf.gii -surf ${hemi}.white.surf.gii -surf ${hemi}.pial.surf.gii

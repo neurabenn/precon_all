@@ -126,6 +126,7 @@ if [ -f mri/brain.finalsurfs.mgz ];then
         # dim=$(fslinfo mri/brainmask.nii.gz |grep 'pixdim1'|awk '{print $2}')
         # echo "data was resampled to " ${dim} "isotropic"
         cp ${T1} mri/brainmask.nii.gz 
+        cp ${T1} mri/rawavg.nii.gz
         # $FSLDIR/bin/flirt -in mri/brainmask.nii.gz  -ref mri/brainmask.nii.gz  -out mri/brainmask.nii.gz  -applyisoxfm ${dim}
     fi
 else
@@ -168,11 +169,13 @@ else
   #lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
   #lta_convert --infsl ${mri_dir}/transforms/str2std.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${PCP_PATH}/standards/${animal}/${animal}_brain.nii.gz
   #### new version uses identitiy matrix. Sep 13 2019
-    lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${anat} 
-    lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${anat} 
-    ##### editing in january 2020#####
+
+      ##### editing in january 2020#####
     ##### current code means surface transform doesn't propoerly match volume#####
     ##### added line at 300 to hopefully correct ######
+    lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat --outlta ${mri_dir}/transforms/talairach.lta --src ${anat} --trg ${anat} 
+    lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat --outmni ${mri_dir}/transforms/talairach.xfm --src ${anat} --trg ${anat} 
+
     for mask in `ls $PCP_PATH/standards/${animal}/fill/*gz`;do 
         out=$(basename $mask)
         $FSLDIR/bin/flirt -in ${mask} -ref ${anat} -out ${mri_dir}/${out}  -applyxfm -init ${mri_dir}/transforms/std2str.mat 
@@ -198,10 +201,13 @@ else
 fi
 # ##################################################################################################################### end necesary edits
 
+for img in `ls *.nii.gz`;do 
+  iso_check ${img}
+done
 
 echo "###### Normalizing T1 Intensities ######"
 #### normalization of volume for use in freesurfer
-upper=`fslstats brainmask -R | cut -d ' ' -f2-`
+upper=`fslstats rawavg -R | cut -d ' ' -f2-`
  echo "upper intensity value is " $upper 
 
 pwd
@@ -212,14 +218,9 @@ echo "###determining if image isometric. If not, resample to lowest dimension sp
 #### however freesurfer works best on isometric data. So here we check and convert to isometric at native resolution,
 
 
-for img in `ls *.nii.gz`;do 
-  iso_check ${img}
-done
-
-
 echo "###### FILLING  WM #######"
 
-fslmaths brainmask -div $upper -mul 150 nu -odt int ###original. commented out for carmel 
+fslmaths rawavg -div $upper -mul 150 nu -odt int ###original. commented out for carmel 
 
  # fslmaths brainmask -div $upper -mul 300 nu -odt int #edited for carmel
 

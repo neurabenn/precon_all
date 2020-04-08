@@ -12,6 +12,7 @@ Usage() {
     echo ""
     echo "-a <animal model> must be should be the name of a folder in the $PCP_PATH/standards/directory. Ex. $PCP_PATH/standards/pig" 
     echo "-n no brain extraction. Using a previously extracted brain. only runs linear transforms. " 
+    echo "-v down sample individual surfaces to a given resolution in HCP space. " 
     echo " -t < Segmentation threshold default is 0.5 >"
     echo " -s < Segment with ANTs AtroposN4 instead of FAST threshold default is 0.1 >"
     echo " -L  Left Hemisphere only"
@@ -41,13 +42,14 @@ GREEN=$(echo -en '\033[00;32m')
 img=""
 steps=""
 animal=""
+verts=""
 no_extract=""
 ants_seg=""
 L_only=""
 R_only=""
 help=""
 
-while getopts ":i:r:a:t:nsLRh" opt ; do 
+while getopts ":i:r:a:t:v:nsLRh" opt ; do 
     
 	case $opt in
 		i) i=1;
@@ -65,9 +67,12 @@ while getopts ":i:r:a:t:nsLRh" opt ; do
 		h) h=1;
 			steps=`echo $OPTARG`
 			if [ ${h} -lt 1 ];then : ; else: echo " ${RED} insert help text here ${NC}"; exit 1;fi #### work on this later. not top priority this minute
-			;;	
+			;;
     t)  
-            thresh=`echo $OPTARG`
+        thresh=`echo $OPTARG`
+            ;;	
+    v)  
+            verts=`echo $OPTARG`
                 ;;
      n)  n=1;
           no_extract="y"
@@ -115,13 +120,20 @@ else
 	fi
  :
 fi
-echo ${thresh}
+
+if [[ ${verts} == "" ]];then
+    echo "no vertices specified"
+    echo "native output will not be resampled"
+else
+    echo "native surfaces will be downsampled to ${verts}"
+fi
+
+
 
 side=(lh rh)
 if [[ ${L_only} == "y" ]];then echo "Left only"; side=(lh);fi
 if [[ ${R_only} == "y" ]];then echo "Right only"; side=(rh);fi
 echo ${side[*]}
-
 
 # echo ${steps}
 name=$(basename ${img})
@@ -137,7 +149,7 @@ brain_dir=${dir}${name/.nii.gz/}
 ##### add a source of freesurfer. this should help with final steps in generating cortical labels and volmask. 
 source $FREESURFER_HOME/SetUpFreeSurfer.sh
 #### determine that the call matches the predefined options
-if [ ${steps} == "precon_all" ] || [ ${steps} == "precon_1" ] || [ ${steps} == "precon_2" ] || [ ${steps} == "precon_3" ] || [ ${steps} == "precon_art" ];then echo "${GREEN}performing ${steps} on ${img}${NC}"
+if [ ${steps} == "precon_all" ] || [ ${steps} == "precon_1" ] || [ ${steps} == "precon_2" ] || [ ${steps} == "precon_3" ] || [ ${steps} == "precon_4" ] || [ ${steps} == "precon_art" ];then echo "${GREEN}performing ${steps} on ${img}${NC}"
 else 
 	echo "${RED} Please use one of the following predefined options as the -r argument "\n" precon_all "\n" precon_1 "\n" precon_2 precon_3${NC} "
 	Usage
@@ -331,6 +343,15 @@ if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
 fi
 
 
+#### check for downsampling, and if specified resample to nearest icosahedron
+if [[ "$verts" != "" ]];then 
+    #### down sample if vertices have been specified
+    for hemi in "${side[@]}";do
+        echo "downsaplig mesh to icosahedron nearest ${verts} "
+        $PCP_PATH/bin/down_surf.sh -s ${brain_dir} -h ${hemi} -v ${verts}
+    done
+fi
+
 fi
 
 
@@ -485,6 +506,17 @@ if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
 fi
 
 
+#### check for downsampling, and if specified resample to nearest icosahedron
+if [[ "$verts" != "" ]];then 
+    #### down sample if vertices have been specified
+    for hemi in "${side[@]}";do
+        echo "downsaplig mesh to icosahedron nearest ${verts} "
+        $PCP_PATH/bin/down_surf.sh -s ${brain_dir} -h ${hemi} -v ${verts}
+    done
+fi
+
+
+
 fi
 
 
@@ -527,7 +559,7 @@ if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
     ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
 fi
 
-##### lets build the surfaces now
+#### lets build the surfaces now
 cd ${dir}
 
 
@@ -542,7 +574,7 @@ echo ${brain_dir}
 subj=$(basename ${brain_dir})
 # # ### generate cortex label from masks 
 cd $SUBJECTS_DIR
-pwd
+# pwd
 
 if [[ ${L_only} == "y" ]];then 
     echo "only making left labels"
@@ -558,7 +590,6 @@ if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
     echo "making left and right labels"
 echo "${PCP_PATH}bin/cortex_labelgen.sh -s ${subj} " |bash
 fi
-exit 1
 # # # #### create a fake aseg to get the ribbon 
 cp ${subj}/mri/brain.mgz ${subj}/mri/aseg.mgz 
 # # # # ### generate the FS ribbon mask
@@ -566,7 +597,26 @@ if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
     mris_volmask --save_ribbon $(basename ${brain_dir})
 fi
 
+#### check for downsampling, and if specified resample to nearest icosahedron
+if [[ "$verts" != "" ]];then 
+    #### down sample if vertices have been specified
+    for hemi in "${side[@]}";do
+        echo "downsaplig mesh to icosahedron nearest ${verts} "
+        $PCP_PATH/bin/down_surf.sh -s ${brain_dir} -h ${hemi} -v ${verts}
+    done
 fi
+
+fi
+
+
+if [ ${steps} == "precon_4" ];then
+    echo "resampling native surfaces to lower resolution mesh"
+    for hemi in "${side[@]}";do
+        echo "downsaplig mesh to icosahedron nearest ${verts} "
+        $PCP_PATH/bin/down_surf.sh -s ${brain_dir} -h ${hemi} -v ${verts}
+    done
+fi
+
 
 
 if [ ${steps} == "precon_art" ];then
