@@ -148,7 +148,7 @@ fi
 $FSLDIR/bin/invwarp --warp=mri/transforms/str2std_warp --ref=sanlm_${T1} --out=mri/transforms/std2str_warp
 $FSLDIR/bin/applywarp --in=${prob_mask} --ref=sanlm_${T1}  --interp=nn --warp=mri/transforms/std2str_warp --out=${T1/.nii.gz/_brain_mask}
 $FSLDIR/bin/fslmaths sanlm_${T1} -mas ${T1/.nii.gz/_brain_mask}  ${T1/.nii.gz/_brain}
-
+${ANTSPATH}/ImageMath  3 sanlm_${T1} TruncateImageIntensity sanlm_${T1}  0.05 0.999
 
 echo " End brain extraction "
 

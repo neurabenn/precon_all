@@ -6,7 +6,7 @@ The curent example we'l use is the pig as it's what the pipeline has been used f
 
 For comments and questions email **rabbenn@cnic.es**
 
-First clone the directory into wherever you'd like. Add a path variable pointing to the directory called $PCP_PATH
+First clone the directory into wherever you'd like. Add a path variable pointing to the cloned precon_all directory and name it $PCP_PATH
 
 In order to run the pipeline simply type in the terminal surfing_safari.sh -i <my_T1.nii.gz> -r precon_all
 

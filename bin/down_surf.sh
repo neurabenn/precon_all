@@ -56,7 +56,7 @@ if [[ ! -d ${subj} ]];then echo "${RED}\n-s SUBJECT MUST BE DEFINED ${NC}" ; Usa
 if [ "${hemi}" == "lh" ] || [ "${hemi}" == "rh" ] ;then echo ${hemi}; else echo "${RED}\n-h HEMISPHERE MUS BE DEFINED lh or rh ${NC}" ; exit 1 ;fi
 if [[ "${verts}" -lt 500 ]];then echo " "; echo " ${RED}DEFINE NUMBER OF VERTICES. Vertices should be equal to or greater than 500 ${NC}"; Usage; exit 1;fi ### check input file exists
 
-if [[ verts -lt 1000 ]];then rd=${verts}; else rd=${verts/000/K};fi 
+if [[ verts -lt 1000 ]];then rd=${verts}; else rd=${verts/000}K;fi 
 
 out=${subj}/surf_${rd}
 mkdir -p ${out}
