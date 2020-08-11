@@ -179,7 +179,7 @@ else
     for mask in `ls $PCP_PATH/standards/${animal}/fill/*gz`;do 
         out=$(basename $mask)
         $FSLDIR/bin/flirt -in ${mask} -ref ${anat} -out ${mri_dir}/${out}  -applyxfm -init ${mri_dir}/transforms/std2str.mat 
-        $FSLDIR/bin/fslmaths ${mri_dir}/${out}  -bin ${mri_dir}/${out}  
+        $FSLDIR/bin/fslmaths ${mri_dir}/${out}  -thr 0.3 -bin ${mri_dir}/${out}  
     done
 
 
@@ -307,11 +307,17 @@ lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat  --outlta ${mri_dir}/transfor
 lta_convert --infsl $FSLDIR/etc/flirtsch/ident.mat  --outmni ${mri_dir}/transforms/talairach.xfm --src ${mri_dir}/brain.nii.gz --trg ${mri_dir}/brain.nii.gz
 
 
+####### insert the subcortex as 250 in the brain image 
+
+$FSLDIR/bin/fslmaths  brain -mas sub_cort brain_rm_sc
+$FSLDIR/bin/fslmaths  brain -sub brain_rm_sc -add sub_cort250 brain_SC250
+$FSLDIR/bin/imrm brain_rm_sc
+
 
 echo "######final conversion for surface generation######"
 
 for hemi in "${side[@]}";do
-  $FSLDIR/bin/fslmaths brain -mas ${hemi}_hem ${hemi}_brain
+  $FSLDIR/bin/fslmaths brain_SC250 -mas ${hemi}_hem ${hemi}_brain
   if [[ ${hemi} == "left" ]];then 
     mri_convert left_brain.nii.gz  lh.brain.finalsurfs.mgz
   fi

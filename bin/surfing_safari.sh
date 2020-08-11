@@ -209,7 +209,7 @@ fi
 fi
 
 
-
+###############precon_all code block
 ######## conditions for precon all
 if [ ${steps} == "precon_all" ];then 
 
@@ -434,6 +434,7 @@ if [ -d $PCP_PATH/standards/${animal}/seg_priors ];then
     	${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh}
     fi
 fi
+echo "debugging"
 
 ### conform outputs to isometric space.
 

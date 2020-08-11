@@ -12,29 +12,30 @@ ico=$3
 ref=${temp}/mri/brain.nii.gz
 
 
-# for subj in $(cat ${group});do 
-# 	tdir=${subj}/mri/transforms/
-# 	echo "registering" ${subj} "to" ${temp}
-# 	#### copy the old transforms to a precon_all folder. 
-# 	#### you'll want to use this if you need to rerun an individual surface again
-# 	files=`ls ${tdir}/*`
+for subj in $(cat ${group});do 
+	tdir=${subj}/mri/transforms/
+	echo "registering" ${subj} "to" ${temp}
+	#### copy the old transforms to a precon_all folder. 
+	#### you'll want to use this if you need to rerun an individual surface again
+	files=`ls ${tdir}/*`
 
-# 	mkdir -p ${tdir}/precon_all
-# 	#### change cp to mv before publishing
-# 	cp ${files} ${tdir}/precon_all
+	mkdir -p ${tdir}/precon_all
+	#### change cp to mv before publishing
+	cp ${files} ${tdir}/precon_all
 
-# 	echo "#### running flirt registration ####"
-# 	img=${subj}/mri/brain.nii.gz
-# 	echo $img
+	echo "#### running flirt registration ####"
+	img=${subj}/mri/brain.nii.gz
+	echo $img
 
-# 	$FSLDIR/bin/flirt -in ${img} -ref ${ref} -dof 12 -searchrz -180 180 -searchry -180 180 -searchrz -180 180 -omat ${tdir}/str2temp.mat
+	$FSLDIR/bin/flirt -in ${img} -ref ${ref} -dof 12 -searchrz -180 180 -searchry -180 180 -searchrz -180 180 -omat ${tdir}/str2temp.mat
 
-# 	echo "### converting mats to FS tailarach mats ###"
+	echo "### converting mats to FS tailarach mats ###"
 
-# 	lta_convert --infsl ${tdir}/str2temp.mat  --outlta ${tdir}/talairach.lta --src ${img} --trg ${ref}
-# 	lta_convert --infsl ${tdir}/str2temp.mat  --outmni ${tdir}/talairach.xfm --src ${img} --trg ${ref}
-# done
-
+	lta_convert --infsl ${tdir}/str2temp.mat  --outlta ${tdir}/talairach.lta --src ${img} --trg ${ref}
+	lta_convert --infsl ${tdir}/str2temp.mat  --outmni ${tdir}/talairach.xfm --src ${img} --trg ${ref}
+	
+done
+exit 1 
 
 # ## make the templates i.e. do the surface registrations #### 
 # ## add path later. will eventuall be $PCP_PATH/bin/something

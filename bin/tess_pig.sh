@@ -92,7 +92,7 @@ SUBJECTS_DIR=$(echo $(cd $(dirname "${subj}") && pwd -P))/
 
    mris_smooth -nw ${hemi}.orig.nofix ${hemi}.smoothwm.nofix
 
-   mris_inflate -n 125 -no-save-sulc ${hemi}.smoothwm.nofix ${hemi}.inflated.nofix
+   mris_inflate -n 1000 -no-save-sulc ${hemi}.smoothwm.nofix ${hemi}.inflated.nofix
    mris_sphere -q -seed 1234 ${hemi}.inflated.nofix ${hemi}.qsphere.nofix
    cp ${hemi}.orig.nofix ${hemi}.orig
    cp ${hemi}.inflated.nofix ${hemi}.inflated
