@@ -1,5 +1,5 @@
 # precon_all
-precon_all surface pipline
+precon_all surface pipeline
 
 precon_all is an animal surface generation pipeline that can be easily adapted to work with multiple species. 
 The curent example we'l use is the pig as it's what the pipeline has been used for the most. 
