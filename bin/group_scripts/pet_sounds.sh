@@ -35,13 +35,13 @@ for subj in $(cat ${group});do
 	lta_convert --infsl ${tdir}/str2temp.mat  --outmni ${tdir}/talairach.xfm --src ${img} --trg ${ref}
 	
 done
-exit 1 
+
 
 # ## make the templates i.e. do the surface registrations #### 
 # ## add path later. will eventuall be $PCP_PATH/bin/something
 
 # echo "Here's la chicha.... this part can take a while "
-# $PCP_PATH/bin/group_scripts/make_surftemp.sh ${temp} ${group}
+$PCP_PATH/bin/group_scripts/make_surftemp.sh ${temp} ${group}
 
 
 
