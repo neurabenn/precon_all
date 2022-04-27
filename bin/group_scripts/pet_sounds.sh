@@ -41,6 +41,7 @@ done
 # ## add path later. will eventuall be $PCP_PATH/bin/something
 
 # echo "Here's la chicha.... this part can take a while "
+###### make this an optino to run form the command line or not
 $PCP_PATH/bin/group_scripts/make_surftemp.sh ${temp} ${group}
 
 
