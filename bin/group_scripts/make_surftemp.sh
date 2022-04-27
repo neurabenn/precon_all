@@ -41,6 +41,7 @@ for subj in `cat $subjects`;do
 	for hemi in lh rh;do 
 		echo "pass"
 		mris_register ${subj}/surf/${hemi}.sphere ${out}/${hemi}.temp1.tif ${subj}/surf/${hemi}.sphere.reg1 
+	done
 done
 
 
