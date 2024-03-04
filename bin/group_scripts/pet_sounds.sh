@@ -9,32 +9,46 @@ group=$2
 ico=$3
 #### first we'll change the dummy tailarach transforms to be a linear registration to the template subject
 
+
 ref=${temp}/mri/brain.nii.gz
 
 
+
+
+	echo "prepping transforms to make average surface"
 for subj in $(cat ${group});do 
 	tdir=${subj}/mri/transforms/
-	echo "registering" ${subj} "to" ${temp}
-	#### copy the old transforms to a precon_all folder. 
-	#### you'll want to use this if you need to rerun an individual surface again
-	files=`ls ${tdir}/*`
+	if [ -d "${tdir}/precon_all" ]; then
+	    	echo "registration copies already done"
+	else
+		mkdir  ${tdir}/precon_all
+		
+		echo "registering" ${subj} "to" ${temp}
 
-	mkdir -p ${tdir}/precon_all
-	#### change cp to mv before publishing
-	cp ${files} ${tdir}/precon_all
+		if [ ! -d "${subj}/label" ]; then
+			$PCP_PATH/bin/cortex_labelgen.sh -s ${subj}
+		fi
 
-	echo "#### running flirt registration ####"
-	img=${subj}/mri/brain.nii.gz
-	echo $img
+		#### copy the old transforms to a precon_all folder. 
+		#### you'll want to use this if you need to rerun an individual surface again
+		files=`ls ${tdir}/*`
 
-	$FSLDIR/bin/flirt -in ${img} -ref ${ref} -dof 12 -searchrz -180 180 -searchry -180 180 -searchrz -180 180 -omat ${tdir}/str2temp.mat
+		#### change cp to mv before publishing
+		cp ${files} ${tdir}/precon_all
 
-	echo "### converting mats to FS tailarach mats ###"
+		echo "#### running flirt registration ####"
+		img=${subj}/mri/brain.nii.gz
+		echo $img
 
-	lta_convert --infsl ${tdir}/str2temp.mat  --outlta ${tdir}/talairach.lta --src ${img} --trg ${ref}
-	lta_convert --infsl ${tdir}/str2temp.mat  --outmni ${tdir}/talairach.xfm --src ${img} --trg ${ref}
-	
+		$FSLDIR/bin/flirt -in ${img} -ref ${ref} -dof 12 -searchrz -180 180 -searchry -180 180 -searchrz -180 180 -omat ${tdir}/str2temp.mat
+
+		echo "### converting mats to FS tailarach mats ###"
+
+		lta_convert --infsl ${tdir}/str2temp.mat  --outlta ${tdir}/talairach.lta --src ${img} --trg ${ref}
+		lta_convert --infsl ${tdir}/str2temp.mat  --outmni ${tdir}/talairach.xfm --src ${img} --trg ${ref}
+	fi
 done
+
 
 
 # ## make the templates i.e. do the surface registrations #### 
@@ -42,18 +56,19 @@ done
 
 # echo "Here's la chicha.... this part can take a while "
 ###### make this an optino to run form the command line or not
-$PCP_PATH/bin/group_scripts/make_surftemp.sh ${temp} ${group}
+# $PCP_PATH/bin/group_scripts/make_surftemp.sh ${temp} ${group}
 
 
 
 SUBJECTS_DIR=`pwd`
+echo $SUBJECTS_DIR
 
-#############
-####here we use a modified version of the actual freesurfer script make_average_surfaces
-#### first well copy the script from the precon_all directory 
-#### then we insert the template subjects brain into the copy as mni305.mgz 
-#### finally we'll use the rest of the script unaltered except for that we'll only use it to generate the average surfaces
-#### in order to get surface stats we need cortex labels for the average brain. as of right now that requires manual intervention
+# #############
+# ####here we use a modified version of the actual freesurfer script make_average_surfaces
+# #### first well copy the script from the precon_all directory 
+# #### then we insert the template subjects brain into the copy as mni305.mgz 
+# #### finally we'll use the rest of the script unaltered except for that we'll only use it to generate the average surfaces
+# #### in order to get surface stats we need cortex labels for the average brain. as of right now that requires manual intervention
 
 name=$(basename ${temp})
 echo ${name}
@@ -61,13 +76,14 @@ echo ${name}
 cp $PCP_PATH/bin/group_scripts/make_average_surface_precon `pwd`/make_average_surface_precon_${name}
 file=`pwd`/make_average_surface_precon_${name}
 
-# ##### need to write a function which will let us determine the correct ico for each animal. i.e. closest to waht the raw surface has. 
-# ##### for example pigs only have around 15K vertices. ico 5 is appropriate for them.
+# # ##### need to write a function which will let us determine the correct ico for each animal. i.e. closest to waht the raw surface has. 
+# # ##### for example pigs only have around 15K vertices. ico 5 is appropriate for them.
 sed -i .bak "s:mni305 = /Volumes/brain/template_surfs/average/mri/mni305.cor.mgz:mni305 = `pwd`/${ref/.nii.gz/.mgz}:g" ${file}
 subject_list=$(cat ${group} | tr '\n' ' ')
 
 
-# ## make the average surfaces. here we use the FS script we modified with sed from earlier. 
+# # ## make the average surfaces. here we use the FS script we modified with sed from earlier. 
+
 echo "${file} --no-annot --lh  --ico ${ico} --out avg_${name} --subjects ${subject_list}"  |bash
 
 echo "${file} --no-annot --rh  --ico ${ico} --out avg_${name} --subjects ${subject_list}"  |bash
