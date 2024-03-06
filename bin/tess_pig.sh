@@ -85,28 +85,53 @@ SUBJECTS_DIR=$(echo $(cd $(dirname "${subj}") && pwd -P))/
  fi 
 
 
+######## check if the brain is highly gyrified >200k vertices. 
+######## if so downsample before running topology fixing 
 
 
+nverts=$(mris_info ${hemi}.orig.nofix |grep 'num vertices:' |head |cut -d ':' -f2-)
 
-   mris_extract_main_component ${hemi}.orig.nofix ${hemi}.orig.nofix
+if [ "$nverts" -gt 200000 ];then
+  echo "This brain is highly gyrified with over 200k vertices"
+  echo " To facilitate topology correction we will downsample to 150K vertices"
 
-   mris_smooth -nw ${hemi}.orig.nofix ${hemi}.smoothwm.nofix
-
-   mris_inflate -n 1000 -no-save-sulc ${hemi}.smoothwm.nofix ${hemi}.inflated.nofix
-   mris_sphere -q -seed 1234 ${hemi}.inflated.nofix ${hemi}.qsphere.nofix
-   cp ${hemi}.orig.nofix ${hemi}.orig
-   cp ${hemi}.inflated.nofix ${hemi}.inflated
-
-   cd ${SUBJECTS_DIR}
-  mris_fix_topology -mgz -sphere qsphere.nofix -ga -seed 1234 ${subj} ${hemi}
-  cd $surf_dir
-   mris_euler_number ${hemi}.orig cd
-  mris_remove_intersection ${hemi}.orig ${hemi}.orig
-
-  cd ${SUBJECTS_DIR}
+  wb_command -surface-create-sphere 150000 Sphere.150k.R.surf.gii
 
 
- mris_make_surfaces -noaseg -noaparc -mgz -T1 ${hemi}.brain.finalsurfs ${subj} ${hemi} 
+  mris_smooth -nw ${hemi}.orig.nofix ${hemi}.smoothwm.nofix
+  mris_inflate -n 30 -no-save-sulc ${hemi}.smoothwm.nofix ${hemi}.inflated.nofix
+  mris_sphere -q -seed 1234 ${hemi}.inflated.nofix ${hemi}.qsphere.nofix
+
+  mris_convert ${hemi}.qsphere.nofix ${hemi}.qsphere.nofix.surf.gii
+
+  for i in ${hemi}.orig.nofix ${hemi}.smoothwm.nofix ${hemi}.inflated.nofix ;do
+    echo $i
+    mris_convert ${i} ${i}.surf.gii
+    wb_command -surface-resample ${i}.surf.gii ${hemi}.qsphere.nofix.surf.gii Sphere.150k.R.surf.gii BARYCENTRIC ${i}.surf.gii 
+    mris_convert ${i}.surf.gii ${i}
+  done
+
+fi
+
+
+mris_extract_main_component ${hemi}.orig.nofix ${hemi}.orig.nofix
+
+mris_smooth -nw ${hemi}.orig.nofix ${hemi}.smoothwm.nofix
+mris_inflate -n 1000 -no-save-sulc ${hemi}.smoothwm.nofix ${hemi}.inflated.nofix
+mris_sphere -q -seed 1234 ${hemi}.inflated.nofix ${hemi}.qsphere.nofix
+cp ${hemi}.orig.nofix ${hemi}.orig
+cp ${hemi}.inflated.nofix ${hemi}.inflated
+
+cd ${SUBJECTS_DIR}
+mris_fix_topology -mgz -sphere qsphere.nofix -ga -seed 1234 ${subj} ${hemi}
+cd $surf_dir
+mris_euler_number ${hemi}.orig cd
+mris_remove_intersection ${hemi}.orig ${hemi}.orig
+
+cd ${SUBJECTS_DIR}
+
+
+mris_make_surfaces -noaseg -noaparc -mgz -T1 ${hemi}.brain.finalsurfs ${subj} ${hemi} 
 
  cd $surf_dir
  mris_smooth -n 3 -nw -seed 1234 ${hemi}.white ${hemi}.smoothwm
