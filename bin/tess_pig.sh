@@ -150,11 +150,18 @@ mris_make_surfaces -noaseg -noaparc -mgz -T1 ${hemi}.brain.finalsurfs ${subj} ${
  mris_calc -o ${hemi}.area.mid ${hemi}.area.mid div 2
  mris_calc -o ${hemi}.volume ${hemi}.area.mid mul ${hemi}.thickness
 
-mris_expand -thickness ${hemi}.white 0.5 ${hemi}.graymid 
 
-for surf in white pial graymid inflated;do 
-    mris_convert --to-scanner ${hemi}.${surf} ${hemi}.${surf}.surf.gii
-done
+if [ "$nverts" -lt 200000 ];then
+  mris_expand -thickness ${hemi}.white 0.5 ${hemi}.graymid 
+
+    for surf in white pial graymid inflated;do 
+        mris_convert --to-scanner ${hemi}.${surf} ${hemi}.${surf}.surf.gii
+    done
+else
+      for surf in white pial inflated;do 
+        mris_convert --to-scanner ${hemi}.${surf} ${hemi}.${surf}.surf.gii
+    done
+fi
 
 mris_convert ${hemi}.sphere  ${hemi}.sphere.surf.gii
 
