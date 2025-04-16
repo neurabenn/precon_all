@@ -8,7 +8,21 @@ For comments and questions email **r.austinbenn@gmail.com**
 
 First clone the directory into wherever you'd like. Add a path variable pointing to the cloned precon_all directory and name it $PCP_PATH
 
-In order to run the pipeline simply type in the terminal surfing_safari.sh -i <my_T1.nii.gz> -r precon_all
+# Running precon_all on a single subject from a new species
+
+Simply create these five masks:
+1. A brain mask called `brain_mask.nii.gz`
+2. A left hemishpere mask named `left_hem.nii.gz`
+3. A right hemishpere mask named `right_hem.nii.gz`
+4. A subcortical mask which covers the corpus callosum and everything beneath it as well as the ventricles. 
+This is the area that will be filled in by the medial wall. call it `sub_cort.nii.gz`
+5. A non cortical mask which includes everything you wish to exclude from the final surface. name it `non_cort.nii.gz`
+
+Then place all these masks in a folder named `masks` in the working directory where your image is.
+
+Then to run the pipeline like this  `surfing_safari.sh -i <my_T1.nii.gz> -r precon_all -a masks`
+
+# Setting up precon_all for high throughput processing with a standard template
 
 In order to customize the pipeline you'll need to create a new directory for each new animal you wish to run the pipeline in.
 The current example is $PCP_PATH/standards/pig
@@ -27,9 +41,7 @@ $PCP_PATH/standards/<your_animal>/extraction
     A brain mask aptly named: brain_mask.nii.gz 
     
     A brain extracted T1 template named: <animal>_brain.nii.gz
-    
-    (The pipeline has only been tested for population templates. Single subject templates could also work in theory)
-    
+        
     
 You'll also need a a folder titles $PCP_PATH/standards/<your_animal>/fill
   
@@ -40,7 +52,10 @@ You'll also need a a folder titles $PCP_PATH/standards/<your_animal>/fill
     A subcortical structure mask named: sub_cort.nii.gz 
     
     A brain stem and cerebellar mask named: non_cort.nii.gz 
-    
+  
+After all this is done, run the pipeline by typing 
+`surfing_safari.sh -i <my_T1.nii.gz> -r precon_all -a <your_animal>`
+
 Finally you have the option to make a segmentation priors folder titled: $PCP_PATH/standards/<your_animal>/seg_priors
   
   This folder enables the use of tissue priors in the segmentation. We recommend using them if possible
@@ -52,10 +67,23 @@ Finally you have the option to make a segmentation priors folder titled: $PCP_PA
     gm.nii.gz
    
     wm.nii.gz
+**Segmentation priors are optional. The pipeline will run without them, though you may need to perform more manual intervention posthoc**
 
-Stay tuned for updates. We'll soon release a manual including how to generate each of the required inputs for your animal
+# Correcting white and pial surfaces
+Precon_all is built on freesurfer. To edit a surface simply edit the `wm.nii.gz` and save it in the `/mri/` folder of your subject as `wm_hand_edit.nii.gz`. This is the same process used in human Freesurfer to [correct pial surfaces](https://surfer.nmr.mgh.harvard.edu/fswiki/FsTutorial/PialEditsV6.0) except the file needs to be a nifti. 
 
-**Update! Macaque files are now included from the NMT NIMH macaque template. **
-** Editing wm_orig.nii.gz and saving it as wm_hand_edit.ni.gz will insert your manual corrections of segmentation.**
+# Other options when running
+- If you are running this on a brain that's already been extracted pass the `-n` flag
+- If you want to run segmentation with ANTs instead of FAST pass the `-s` flag
+- If you want to run on only the left hemisphere or only have left heisphere data pass the flad `-L`
+- Similarly for the right pass the `-R` flag
+- You can down sample the surfaces to a certain icosahedral sphere by passing the flag `-v nvertices` 
+- You can change the segmentation threshold for white matter with the `-t` flag. 
 
-Here's the full poster explaining the pipeline: https://user-images.githubusercontent.com/9336717/59021392-fd978080-884b-11e9-8cf1-cb21b08e776b.jpg
+# Precon_all modules 
+ - precon_all reconstructs the cortical surface from a single whole body image.
+ - precon_1 Only performs brain extraction i.e step 1
+ - precon_2 performs steps Denoising, Segmentation, WM fill and generates surfaces
+ - precon_3 performs only WM filling and Generates surfaces
+ - precon_4 will downsample the output of a previous precon_all run. `-v` flag is mandatory.
+ - precon_art meant for art projects or figures in which the non_cort mask is included. Only run after precon_all has been succesffuly run. Precon art is not meant to give any statistics or information on the surface and is afor visualization purposes only
