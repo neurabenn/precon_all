@@ -93,10 +93,58 @@ Precon_all requires that you have Freesurfer 6 or above, FSL version 6 or above,
 All packages must be installed in your local bash profile as specified by each packages instructions. 
 Once installed, simply clone this repository and point the $PCP_PATH to the precon_all directory you've cloned. 
 
- # Precon_all as a docker container
- Precon_all can be run through a docker container as well as on linux subsystem in windows.
- To set this up, first edit line 317 of the `precon_alldockerfile` to point to your local path to your freesurfer license.
- Then simply run the `precon_all_docker.sh` script.
+# Precon_all as a docker container
+Precon_all can be run through a docker container as well as on linux subsystem in windows.
+
+The easiest option is to pull the prebuilt Docker image from Docker Hub.
+
+Pull the image:
+
+- Native amd64 hosts:
+`docker pull neurabenn/precon_all:latest`
+
+- Apple Silicon or other arm64 hosts:
+`docker pull --platform=linux/amd64 neurabenn/precon_all:latest`
+
+This image does not include a FreeSurfer license. Each user must mount their own `fs_license.txt` file at runtime.
+
+Run the image in Docker:
+
+- Native amd64 hosts:
+`docker run --rm -it -v /path/to/your/data:/data -v /path/to/your/fs_license.txt:/opt/freesurfer-6.0.0/license.txt:ro neurabenn/precon_all:latest bash`
+
+- Apple Silicon or other arm64 hosts:
+`docker run --platform=linux/amd64 --rm -it -v /path/to/your/data:/data -v /path/to/your/fs_license.txt:/opt/freesurfer-6.0.0/license.txt:ro neurabenn/precon_all:latest bash`
+
+Inside the container, change into the mounted directory and run the pipeline, for example:
+`cd /data && surfing_safari.sh -i my_T1.nii.gz -r precon_all -a pig`
+
+If pulling the prebuilt image does not work for your system, build the image locally from the Dockerfile instead.
+
+This Dockerfile downloads x86_64 neuroimaging binaries. On Intel Macs and most x86_64 Linux machines this can be built natively. On Apple Silicon (M1, M2, M3, M4) and other arm64 systems, build and run it as `linux/amd64`.
+
+Recommended build commands:
+
+- Intel Mac or x86_64 Linux:
+`docker build -f precon_alldockerfile -t precon_all . 2>&1 | tee precon_all_build.log`
+
+- Apple Silicon Mac or other arm64 system:
+`docker build --platform=linux/amd64 -f precon_alldockerfile -t precon_all . 2>&1 | tee precon_all_build.log`
+
+- Windows with Docker Desktop or Linux hosts where native amd64 builds are not available:
+Use the same `--platform=linux/amd64` build command above. This depends on Docker Desktop or QEMU emulation and may be slower.
+
+If you build locally instead of pulling from Docker Hub, run the local image with the same commands above, but replace `neurabenn/precon_all:latest` with `precon_all`.
+
+The helper script `precon_all_docker.sh` is no longer needed for normal use. In most cases you should either pull `neurabenn/precon_all:latest` from Docker Hub or build directly from `precon_alldockerfile`.
+
+# Using on HPC clusters
+If the image is available on Docker Hub, it can also be used on high performance computing clusters through Singularity.
+
+For example, pull the Docker Hub image and let Singularity convert it:
+`singularity pull docker://neurabenn/precon_all:latest`
+
+Users should still provide their own FreeSurfer license when running the container on the cluster.
 
 # Runtime
 Precon_all runs on most species within 2-5 hours. However if using a highly gyrified or very large brain it can take longer. 

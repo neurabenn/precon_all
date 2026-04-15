@@ -99,7 +99,7 @@ RUN apt-get update -qq \
     && rm -rf /var/lib/apt/lists/* \
     && echo "Downloading FreeSurfer ..." \
     && mkdir -p /opt/freesurfer-6.0.0 \
-    && curl -fL ftp://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.0/freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.0.tar.gz \
+    && curl -fL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.0/freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.0.tar.gz \
     | tar -xz -C /opt/freesurfer-6.0.0 --owner root --group root --no-same-owner --transform='s,freesurfer/,,' \
          --exclude='average/mult-comp-cor' \
          --exclude='lib/cuda' \
@@ -139,10 +139,9 @@ RUN apt-get update -qq \
     && export PATH="/opt/miniconda-latest/bin:$PATH" \
     && echo "Downloading Miniconda installer ..." \
     && conda_installer="/tmp/miniconda.sh" \
-    && curl -fsSL -o "$conda_installer" https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && curl -fsSL -o "$conda_installer" https://repo.anaconda.com/miniconda/Miniconda3-py39_4.12.0-Linux-x86_64.sh \
     && bash "$conda_installer" -b -p /opt/miniconda-latest \
     && rm -f "$conda_installer" \
-    && conda update -yq -nbase conda \
     # Prefer packages in conda-forge
     && conda config --system --prepend channels conda-forge \
     # Packages in lower-priority channels not considered if a package with the same
@@ -154,11 +153,9 @@ RUN apt-get update -qq \
     && conda config --system --set show_channel_urls true \
     # Enable `conda activate`
     && conda init bash \
-    && conda install -y  --name base \
-           "nipype" \
-           "notebook" \
     # Clean up
-    && sync && conda clean --all --yes && sync \
+    && conda clean --all --yes \
+    && sync \
     && rm -rf ~/.cache/pip/*
 RUN test "$(getent passwd nonroot)" \
     || useradd --no-user-group --create-home --shell /bin/bash nonroot
@@ -313,8 +310,6 @@ ENV PATH=/opt/workbench/bin_linux64:$PATH
 
 # Clone the precon_all repository
 RUN git clone https://github.com/neurabenn/precon_all /opt/precon_all
-
-COPY license.txt /opt/freesurfer-6.0.0/license.txt
 
 RUN chmod -R 777 /opt/precon_all
 
