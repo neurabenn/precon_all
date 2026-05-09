@@ -1,4 +1,5 @@
 #!/bin/bash
+
 Usage() {
     echo " "
     echo "Preclinical Surface Reconstruction"
@@ -6,12 +7,13 @@ Usage() {
     echo "Usage: `basename $0` [options] -i <T1.nii.gz> -r <processes to run>"
     echo ""
     echo "Compulsory Arguments "
-    echo "-i <T1 image>		: Directory containing preprocessed animal for surfac generation "
+    echo "-i <T1 image>		: Image from which to reconstruct the surface "
   
-    echo "-r < precon_all>		: hemisphere designationof lh or rh of surfaces to generate" 
+    echo "-r < precon_all>		: Process to run (precon_all, precon_1, precon_2, precon_3, precon_art)" 
     echo ""
     echo "-a <animal model> must be should be the name of a folder in the $PCP_PATH/standards/directory. Ex. $PCP_PATH/standards/pig" 
     echo "-n no brain extraction. Using a previously extracted brain. only runs linear transforms. " 
+    echo " -e < Brain extraction with ANTs instead of FNIRT using template space>"
     echo "-v down sample individual surfaces to a given resolution in HCP space. " 
     echo " -t < Segmentation threshold default is 0.5 >"
     echo " -s < Segment with ANTs AtroposN4 instead of FAST threshold default is 0.1 >"
@@ -35,6 +37,7 @@ Usage() {
 }
 
 
+
 NC=$(echo -en '\033[0m') #NC
 RED=$(echo -en '\033[00;31m') #Red for error messages
 GREEN=$(echo -en '\033[00;32m')
@@ -44,12 +47,13 @@ steps=""
 animal=""
 verts=""
 no_extract=""
+ants_extract=""
 ants_seg=""
 L_only=""
 R_only=""
 help=""
 
-while getopts ":i:r:a:t:v:nsLRh" opt ; do 
+while getopts ":i:r:a:t:v:nseLRh" opt ; do 
     
 	case $opt in
 		i) i=1;
@@ -66,7 +70,12 @@ while getopts ":i:r:a:t:v:nsLRh" opt ; do
       ;;
 		h) h=1;
 			steps=`echo $OPTARG`
-			if [ ${h} -lt 1 ];then : ; else: echo " ${RED} insert help text here ${NC}"; exit 1;fi #### work on this later. not top priority this minute
+			if [ "${h}" -lt 1 ]; then
+                :
+            else
+                echo "${RED} insert help text here ${NC}"
+                exit 1
+            fi
 			;;
     t)  
         thresh=`echo $OPTARG`
@@ -79,6 +88,9 @@ while getopts ":i:r:a:t:v:nsLRh" opt ; do
                 ;;
     s)
           ants_seg="y"
+                ;;
+    e)
+          ants_extract="y"
                 ;;
     L)
           L_only="y"
@@ -145,19 +157,20 @@ brain_dir=${dir}${name/.nii.gz/}
 # echo $img
 # echo ${dir}
 
-
 ##### add a source of freesurfer. this should help with final steps in generating cortical labels and volmask. 
 source $FREESURFER_HOME/SetUpFreeSurfer.sh
+# ---- precon_all logging (additive, no behaviour change) ----
+source "${PCP_PATH}/bin/precon_logging.sh"
+precon_logging_init "${brain_dir}" "${img}" "${steps}" "${animal}"
+# -----------------------------------------------------------
 #### determine that the call matches the predefined options
 if [ ${steps} == "precon_all" ] || [ ${steps} == "precon_1" ] || [ ${steps} == "precon_2" ] || [ ${steps} == "precon_3" ] || [ ${steps} == "precon_4" ] || [ ${steps} == "precon_art" ];then echo "${GREEN}performing ${steps} on ${img}${NC}"
 else 
-	echo "${RED} Please use one of the following predefined options as the -r argument "\n" precon_all "\n" precon_1 "\n" precon_2 precon_3${NC} "
-	Usage
+    echo -e "${RED}Please use one of the following predefined options as the -r argument\nprecon_all\nprecon_1\nprecon_2\nprecon_3${NC}"
+Usage
 	exit 1 
 fi
 
-######################### CHECK IF BEDPOST DIERCTORY IS INPUT. IF SO CREATE FAKE T1 AND USE FAKE T1 FOR REST OF PIPELINE########################
-###################4###### CONVERT T2 TO T1 LATER ON. DO SEGMENTATION IN NATIVE MODLAITY BETWEEN T2 AND T1 #####################################
 
 
 ### check to see if brain is already extracted. if so than set up required directory structure. 
@@ -221,13 +234,21 @@ if [ ${steps} == "precon_all" ];then
 mkdir -p ${dir}${name/.nii.gz/}
 brain_dir=${dir}${name/.nii.gz/}
 
-echo ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
 ##### check for a preliminary alignment matrix first prior to running. sometimes this is necessary for difficult brains. 
 if [ -f ${dir}/pre_extract.mat ];then
     echo " this brain uses a prior linear registraton of pre_extract.mat as an initial starting point for brain extraction"
-    ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y -m  ${dir}/pre_extract.mat
+    if [ "${ants_extract}" != "y" ]; then
+        run_step "precon_1: Brain extraction FNIRT" ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y -m  ${dir}/pre_extract.mat
+    else
+        run_step "precon_1: Brain extraction ANTs" ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y -m  ${dir}/pre_extract.mat -e 
+    fi
 else
-    ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
+    if [ "${ants_extract}" != "y" ]; then
+        run_step "precon_1: Brain extraction FNIRT" ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
+    else
+        run_step "precon_1: Brain extraction ANTs" ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y  -e 
+    fi
+
 fi
 
 echo " "
@@ -261,21 +282,21 @@ if [ -d $PCP_PATH/standards/${animal}/seg_priors ];then
     echo " USING SEGMENTATION PRIORS "
     if [[  ${ants_seg} == "y"  ]];then
     	echo "Using ANTs Atropos"
-    	${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh} -s
+    	run_step "precon_2: ANTs Atropos Segmentation" ${PCP_PATH}/bin/seg_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh} -s
 
     else
     	echo "Using FSL FAST "
-		${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh}
+		run_step "precon_2: FSL FAST Segmentation" ${PCP_PATH}/bin/seg_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh}
 	fi
 	else
 	echo " NO SEGMENTATION PRIORS "
 	if [[  ${ants_seg} == "y"  ]];then 
 		echo "Using Ants Atropos"
-		${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh} -s 
+		run_step "precon_2: ANTs Atropos Segmentation" ${PCP_PATH}/bin/seg_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh} -s 
 	else
 		echo "Using FSL FAST"
     	
-    	${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh}
+    	run_step "precon_2: FSL FAST Segmentation" ${PCP_PATH}/bin/seg_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh}
     fi
 fi
 
@@ -289,18 +310,18 @@ mask=${brain/.nii.gz/_mask.nii.gz}
 
 if [[ ${L_only} == "y" ]];then 
     echo "only filling left"
-    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -L
+    run_step "precon_3: Filling left only" ${PCP_PATH}/bin/fill_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -L
 fi
 
 if [[ ${R_only} == "y" ]];then
     echo "only filling right" 
-    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -R
+    run_step "precon_3: Filling right only" ${PCP_PATH}/bin/fill_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -R
 fi
 echo ##### third option 
 
 if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
    
-    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
+    run_step "precon_3: Filling left and right" ${PCP_PATH}/bin/fill_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
 fi
 
 ##### lets build the surfaces now
@@ -309,7 +330,7 @@ cd ${dir}
 
  for hemi in "${side[@]}";do
  ### potentially change file to work as function.  
- ${PCP_PATH}/bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
+ run_step "precon_3: Making ${hemi} surface" ${PCP_PATH}/bin/tess_animal.sh -s ${brain_dir}  -h ${hemi}  -a 5
  done
 
 SUBJECTS_DIR=${dir}
@@ -347,7 +368,7 @@ fi
 if [[ "$verts" != "" ]];then 
     #### down sample if vertices have been specified
     for hemi in "${side[@]}";do
-        echo "downsaplig mesh to icosahedron nearest ${verts} "
+        echo "Downsamplig mesh to icosahedron nearest ${verts} "
         $PCP_PATH/bin/down_surf.sh -s ${brain_dir} -h ${hemi} -v ${verts}
     done
 fi
@@ -362,20 +383,25 @@ fi
 # ############# precon 1 conditions 
 
 if [ ${steps} == "precon_1" ];then 
-    
-
-mkdir -p ${dir}${name/.nii.gz/}
-brain_dir=${dir}${name/.nii.gz/}
-
-
-
-echo ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
-##### check for a preliminary alignment matrix first prior to running. sometimes this is necessary for difficult brains. 
+    mkdir -p ${dir}${name/.nii.gz/}
+    brain_dir=${dir}${name/.nii.gz/}
+    ##### check for a preliminary alignment matrix first prior to running. sometimes this is necessary for difficult brains. 
     if [ -f ${dir}/pre_extract.mat ];then
         echo " this brain uses a prior linear registraton of pre_extract.mat as an initial starting point for brain extraction"
-        ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y -m  ${dir}/pre_extract.mat
+        if [ "${ants_extract}" != "y" ]; then
+            run_step "precon_1: Brain extraction FNIRT" ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y -m  ${dir}/pre_extract.mat
+        else
+            echo "using ants"
+            run_step "precon_1: Brain extraction ANTs" ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y -m  ${dir}/pre_extract.mat -e 
+        fi
     else
-        ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
+        if [ "${ants_extract}" != "y" ]; then
+            run_step "precon_1: Brain extraction FNIRT" ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y
+        else
+        echo "using ants"
+            run_step "precon_1: Brain extraction ANTs" ${PCP_PATH}/bin/bet_animal.sh -i ${img} -o ${brain_dir} -a ${animal} -d y  -e 
+        fi
+
     fi
 fi
 
@@ -404,7 +430,6 @@ mask=${brain/.nii.gz/_mask.nii.gz}
 
 # prepare brain image for segmentation. Denoise and N4 bias correction.
 
-echo "##### DEBUGGING  inserting ants compatibilty"
 # prepare brain image for segmentation. Denoise and N4 bias correction.
  ${ANTSPATH}/DenoiseImage -d 3 -i ${brain} -o sanlm_${brain} -v 1
 
@@ -417,24 +442,23 @@ if [ -d $PCP_PATH/standards/${animal}/seg_priors ];then
     echo " USING SEGMENTATION PRIORS "
     if [[  ${ants_seg} == "y"  ]];then
     	echo "Using ANTs Atropos"
-    	${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh} -s
+    	run_step "precon_2: ANTs Atropos Segmentation" ${PCP_PATH}/bin/seg_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh} -s
 
     else
     	echo "Using FSL FAST "
-		${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh}
+		run_step "precon_2: FSL Fast Segmentation" ${PCP_PATH}/bin/seg_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -p $PCP_PATH/standards/${animal}/seg_priors -a ${animal} -t ${thresh}
 	fi
 	else
 	echo " NO SEGMENTATION PRIORS "
 	if [[  ${ants_seg} == "y"  ]];then 
 		echo "Using Ants Atropos"
-		${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh} -s 
+		run_step "precon_2: ANTs Atropos Segmentation" ${PCP_PATH}/bin/seg_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh} -s 
 	else
 		echo "Using FSL FAST"
     	
-    	${PCP_PATH}/bin/seg_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh}
+    	run_step "precon_2: FSL Fast Segmentation" ${PCP_PATH}/bin/seg_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -t ${thresh}
     fi
 fi
-echo "debugging"
 
 ### conform outputs to isometric space.
 
@@ -453,18 +477,18 @@ mask=${brain/.nii.gz/_mask.nii.gz}
 
 if [[ ${L_only} == "y" ]];then 
     echo "only filling left"
-    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -L
+    run_step "precon_3: Filling left only" ${PCP_PATH}/bin/fill_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -L
 fi
 
 if [[ ${R_only} == "y" ]];then
     echo "only filling right" 
-    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -R
+    run_step "precon_3: Filling right only" ${PCP_PATH}/bin/fill_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -R
 fi
 echo ##### third option 
 
 if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
    
-    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
+    run_step "precon_3: Filling left and right" ${PCP_PATH}/bin/fill_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
 fi
 
 ##### lets build the surfaces now
@@ -473,7 +497,7 @@ cd ${dir}
 
  for hemi in "${side[@]}";do
  ### potentially change file to work as function.  
- ${PCP_PATH}/bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
+ run_step "precon_3: Making ${hemi} surface" ${PCP_PATH}/bin/tess_animal.sh -s ${brain_dir}  -h ${hemi}  -a 5
  done
 
 SUBJECTS_DIR=${dir}
@@ -483,7 +507,7 @@ subj=$(basename ${brain_dir})
 # # ### generate cortex label from masks 
 cd $SUBJECTS_DIR
 pwd
-
+ 
 if [[ ${L_only} == "y" ]];then 
     echo "only making left labels"
 echo "${PCP_PATH}/bin/cortex_labelgen.sh -s ${subj} -L" |bash
@@ -512,7 +536,7 @@ if [[ "$verts" != "" ]];then
     #### down sample if vertices have been specified
     for hemi in "${side[@]}";do
         echo "downsaplig mesh to icosahedron nearest ${verts} "
-        $PCP_PATH/bin/down_surf.sh -s ${brain_dir} -h ${hemi} -v ${verts}
+        run_step "precon_4: Downsampling to ${verts} vertices" $PCP_PATH/bin/down_surf.sh -s ${brain_dir} -h ${hemi} -v ${verts}
     done
 fi
 
@@ -546,18 +570,18 @@ mask=${brain/.nii.gz/_mask.nii.gz}
 
 if [[ ${L_only} == "y" ]];then 
     echo "only filling left"
-    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -L
+    run_step "precon_3: Filling left only" ${PCP_PATH}/bin/fill_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -L
 fi
 
 if [[ ${R_only} == "y" ]];then
     echo "only filling right" 
-    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -R
+    run_step "precon_3: Filling right only" ${PCP_PATH}/bin/fill_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -R
 fi
 echo ##### third option 
 
 if [[ ${R_only} == "" ]] && [[ ${L_only} == "" ]];then
    
-    ${PCP_PATH}/bin/fill_pig.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
+    run_step "precon_3: Filling left and right" ${PCP_PATH}/bin/fill_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal}
 fi
 
 #### lets build the surfaces now
@@ -566,7 +590,7 @@ cd ${dir}
 
  for hemi in "${side[@]}";do
  ### potentially change file to work as function.  
- ${PCP_PATH}/bin/tess_pig.sh -s ${brain_dir}  -h ${hemi}  -a 5
+ run_step run_step "precon_3: Making ${hemi} surface" ${PCP_PATH}/bin/tess_animal.sh -s ${brain_dir}  -h ${hemi}  -a 5
  done
 
 SUBJECTS_DIR=${dir}

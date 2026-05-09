@@ -45,8 +45,6 @@ while getopts ":i:a:p:t:s" opt ; do
 			priors=`echo $OPTARG`
 				;;
 
-
-
 		t)  
 			thresh=`echo $OPTARG`
 				;;
@@ -130,12 +128,14 @@ else
 
 	if [ ! -d ${priors} ];then
 	#### check folder where priors should exist. if not there will run without priors
-		echo "Path to segmentation prior directory is incomplete or missing. Performing FAST with out priors"
-		echo "### no priors here##### SECOND CHECK ####### INSERTING ANTS ##### "
+		echo "Path to segmentation prior directory is incomplete or missing. Performing FAST without priors"
+		echo "### no priors here##### "
 		
 		#### insert ants check here
 
-		echo $FSLDIR/bin/fast -n 3 -N -o ${ruta}/seg/seg ${ruta}/${T1}
+		$FSLDIR/bin/fast -n 3 -N -o ${ruta}/seg/seg ${ruta}/${T1}
+		$FSLDIR/bin/fslmaths ./seg/seg_pve_2.nii.gz -thr ${thresh} -bin mri/wm_orig
+
 	
 	fi
 	if [ ! -f  ${priors}/csf.nii.gz ];then echo "no CSF mask found"; exit 1;fi
