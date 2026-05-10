@@ -119,7 +119,7 @@ if [ "$priors" = "" ];then
 	else
 
 		echo "SEGMENTING WITH FAST"
-		 $FSLDIR/bin/fast -n 3 -N -o ${ruta}/seg/seg ${ruta}/${T1}
+		 $FSLDIR/bin/fast -B -n 3  -o ${ruta}/seg/seg ${ruta}/${T1}
 		 $FSLDIR/bin/fslmaths ./seg/seg_pve_2.nii.gz -thr ${thresh} -bin mri/wm_orig
 		fi
 else
@@ -133,7 +133,7 @@ else
 		
 		#### insert ants check here
 
-		$FSLDIR/bin/fast -n 3 -N -o ${ruta}/seg/seg ${ruta}/${T1}
+		$FSLDIR/bin/fast -B -n 3  -o ${ruta}/seg/seg ${ruta}/${T1}
 		$FSLDIR/bin/fslmaths ./seg/seg_pve_2.nii.gz -thr ${thresh} -bin mri/wm_orig
 
 	
@@ -181,8 +181,8 @@ echo "### priors are being used. ADDING ANTS HERE####"
 
 	
 	else
-		echo "SEGMENTING" ${animal} "USING FAST"
-		$FSLDIR/bin/fast -n 3 -N  -a ${ruta}/mri/transforms/std2str.mat   -A ${priors}/csf.nii.gz  ${priors}/gm.nii.gz ${priors}/wm.nii.gz -o seg/seg ${ruta}/${T1}
+		echo "SEGMENTING" ${animal} "USING FAST with priors"
+		$FSLDIR/bin/fast -B -v -n 3 -a ${ruta}/mri/transforms/std2str.mat   -A ${priors}/csf.nii.gz  ${priors}/gm.nii.gz ${priors}/wm.nii.gz -o seg/seg ${ruta}/${T1}	
 		$FSLDIR/bin/fslmaths ./seg/seg_pve_2.nii.gz -thr ${thresh} -bin mri/wm_orig
 	
 	fi

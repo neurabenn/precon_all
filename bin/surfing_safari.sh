@@ -302,6 +302,12 @@ fi
 
 cd ${brain_dir}
 
+if [[  ${ants_seg} == "y"  ]];then
+    cp ./seg/Segmentation0N4.nii.gz sanlm_${brain/.nii.gz/_0N4.nii.gz} 
+else
+    cp ./seg/seg_restore.nii.gz sanlm_${brain/.nii.gz/_0N4.nii.gz} 
+fi
+
 pwd
 
 brain=$(basename ${brain_dir})_brain.nii.gz
@@ -470,6 +476,12 @@ fi
 cd ${brain_dir}
 
 pwd
+
+if [[  ${ants_seg} == "y"  ]];then
+    cp ./seg/Segmentation0N4.nii.gz sanlm_${brain/.nii.gz/_0N4.nii.gz} 
+else
+    cp ./seg/seg_restore.nii.gz sanlm_${brain/.nii.gz/_0N4.nii.gz} 
+fi
 
 brain=$(basename ${brain_dir})_brain.nii.gz
 mask=${brain/.nii.gz/_mask.nii.gz}

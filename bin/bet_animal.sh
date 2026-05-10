@@ -177,7 +177,8 @@ else
 	${ANTSPATH}/antsRegistrationSyN.sh -d 3 -f ${temp} -m sanlm_${T1} -x std_brain_mask.nii.gz,${T1/.nii.gz/_brain_mask}.nii.gz -o mri/transforms/ANTsREG
 	rm std_brain_mask.nii.gz
 	${PCP_PATH}/bin/ants_to_fsl_warp.sh ${temp} sanlm_${T1} mri/transforms/ANTsREG1Warp.nii.gz mri/transforms/ANTsREG0GenericAffine.mat 
-
+	$FSLDIR/bin/fslmaths sanlm_${T1} -mas ${T1/.nii.gz/_brain_mask}  ${T1/.nii.gz/_brain}
+	
 
 fi
 echo " End brain extraction "
