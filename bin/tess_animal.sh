@@ -10,7 +10,10 @@ Usage() {
     echo "-h <?h>          			: hemisphere designationof lh or rh of surfaces to generate"
     echo " "
     echo " Optional Arguments" 
-    echo " -n <7>          : Number of steps to inflate the WM during the second inflatoin. default is 7"
+    echo " -a <3>          : Number of steps to inflate the WM during the second inflation. default is 3"
+    echo " "
+    echo " -g minimum gray matter volume percentile -- select the percentile from gray matter mask to set the pial surface"
+    echo " Default is none. run freesurfer on its own. Lower values set pial boundary further from white. higher, closer"
     echo " "
     echo "Example:  `basename $0` -i <subject_directory> -h lh  -n 7"
     
@@ -27,9 +30,10 @@ RED=$(echo -en '\033[00;31m') #Red for error messages
 ####variables to be filled via options
 subj=""
 hemi=""
-infla=3
+infla=""
+grey_pct=""
 #### parse them options
-while getopts ":s:h:a:" opt ; do 
+while getopts ":s:h:a:g" opt ; do 
 	case $opt in
 		s) 
 			subj=`echo $OPTARG`
@@ -43,6 +47,16 @@ while getopts ":s:h:a:" opt ; do
 		a) 
 			infla=`echo $OPTARG`
 				;;
+    g)
+            # Peek at next arg. If it exists and doesn't start with '-', consume it.
+            next_arg="${!OPTIND:-}"
+            if [[ -n "$next_arg" && "$next_arg" != -* ]]; then
+                grey_pct="$next_arg"
+                OPTIND=$((OPTIND + 1))    # tell getopts we consumed it
+            else
+                grey_pct=""        # sentinel: -g was passed but no value
+            fi
+            ;;
 		\?)
 		  echo "Invalid option:  -$OPTARG"
 
@@ -55,7 +69,18 @@ done
 
 echo ${subj}
 echo ${hemi}
-echo ${infla}
+
+if [ "${infla}" == "" ]; then
+    infla=3
+fi
+echo "${infla}"
+
+if [ "${grey_pct}" == "" ]; then
+    echo "gray percent threshold empty"
+  else
+  echo "gray percent threshold is ${grey_pct}"
+fi
+
 
 SUBJECTS_DIR=$(echo $(cd $(dirname "${subj}") && pwd -P))/
  subj=$(basename ${subj})
@@ -67,9 +92,14 @@ SUBJECTS_DIR=$(echo $(cd $(dirname "${subj}") && pwd -P))/
    surf_dir=${subj_full}surf
 
     cd ${mri_dir}
-  pwd 
     mri_mask -T 5 brain.mgz brainmask.mgz brain.finalsurfs.mgz
-
+    ### get min grey stats
+    mri_convert brain.finalsurfs.mgz brain.finalsurfs.nii.gz
+    
+    if [ "${grey_pct}" != "" ];then 
+      min_gray=$(fslstats brain.finalsurfs.nii.gz -k gm_mask.nii.gz -P ${grey_pct}) ###set lowest valu as percentile in gm mask.
+      echo "user set min gray is ${min_gray}"
+    fi
      cd $surf_dir
    pwd 
 
@@ -90,7 +120,7 @@ SUBJECTS_DIR=$(echo $(cd $(dirname "${subj}") && pwd -P))/
 
 
 nverts=$(mris_info ${hemi}.orig.nofix |grep 'num vertices:' |head |cut -d ':' -f2-)
-
+echo $nverts
 if [ "$nverts" -gt 200000 ];then
   echo "This brain is highly gyrified with over 200k vertices"
   echo " To facilitate topology correction we will downsample to 150K vertices"
@@ -130,8 +160,16 @@ mris_remove_intersection ${hemi}.orig ${hemi}.orig
 
 cd ${SUBJECTS_DIR}
 
+#### predefine minimum gray matter intensity to aid pial expansion. 
+if [ "${grey_pct}" == "" ];then 
+  echo "using default mris_make_surface"
+  mris_make_surfaces -noaseg -noaparc -mgz -T1 ${hemi}.brain.finalsurfs ${subj} ${hemi} 
+else
+  echo "########################## user set gray-csf boundary "${min_gray}" #########################"
+  echo "making surfaces with min gray set"
+  mris_make_surfaces -noaseg -noaparc -mgz -min_gray_at_csf_border ${min_gray}  -T1 ${hemi}.brain.finalsurfs ${subj} ${hemi} 
+fi
 
-mris_make_surfaces -noaseg -noaparc -mgz -T1 ${hemi}.brain.finalsurfs ${subj} ${hemi} 
 
  cd $surf_dir
  mris_smooth -n 3 -nw -seed 1234 ${hemi}.white ${hemi}.smoothwm

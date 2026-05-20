@@ -11,6 +11,7 @@ Usage() {
     echo "-p use priors. Indicate path to folder containing CSF,GM,and WM segmentations in standard space."
     echo " -t <0.??>			: Set a custom threshold. Default is 0.5 for FAST and 0.1 in ANTs"
     echo " -s 					: Run ANTs AtroposN4 instead of FSL FAST. (Can be slower) "
+	echo " -w 					: Change weighting used for priors in antsAtropos -- template based only"
    
     echo " " ##############potentially add opption to choose segmentation approach i.e ANTS or FAST############# 
     echo "Example:  `basename $0` -i pig_T1.nii.gz -t 0.3 "
@@ -48,6 +49,9 @@ while getopts ":i:a:p:t:s" opt ; do
 		t)  
 			thresh=`echo $OPTARG`
 				;;
+		# w)  
+		# 	thresh=`echo $OPTARG`
+		# 		;;
 		s)  s=1;
           ants_seg="y"
                 ;;
@@ -102,7 +106,7 @@ fi
 if [ "$priors" = "" ];then
 	echo "SEGMENTING without priors"
 
-	echo "### echo no priors here#### FIRT CHECK ##### INSERTING ANTS ##### "
+	echo "### echo no priors here####"
 	
 	##### insert ants check here
 	if [[ ${ants_seg} == "y" ]];then 
@@ -143,8 +147,6 @@ else
 	if [ ! -f  ${priors}/wm.nii.gz ];then echo "no WM mask found"; exit 1;fi
 	echo "warping priors to anatomical space"
 
-########################################## check modality. for T1 or T2. ###################
-
 
 ######### insert ants check here
 
@@ -161,22 +163,22 @@ echo "### priors are being used. ADDING ANTS HERE####"
 	
 	if [ -f ${ruta}/mri/transforms/std2str_warp.nii.gz ];then
 		##### if a non linear warp exists use it on the priors
-		echo "##### warping priors via on linear warp #####"
+		echo "##### warping priors via non-linear warp #####"
 		$FSLDIR/bin/applywarp -i ${priors}/csf.nii.gz  -r ${T1} -w ${ruta}/mri/transforms/std2str_warp.nii.gz  -o ./seg/priors1.nii.gz
 		$FSLDIR/bin/applywarp -i ${priors}/gm.nii.gz  -r ${T1} -w ${ruta}/mri/transforms/std2str_warp.nii.gz  -o ./seg/priors2.nii.gz
 		$FSLDIR/bin/applywarp -i ${priors}/wm.nii.gz  -r ${T1} -w ${ruta}/mri/transforms/std2str_warp.nii.gz  -o ./seg/priors3.nii.gz 
-		$FSLDIR/bin/fslmaths ./seg/priors3.nii.gz  -thr 0.01 -bin ./seg/priors3.nii.gz 
+		# $FSLDIR/bin/fslmaths ./seg/priors3.nii.gz  -thr 0.01 -bin ./seg/priors3.nii.gz 
 	else
 		echo "##### using linear transform of priors #####"
 		$FSLDIR/bin/applywarp -i ${priors}/csf.nii.gz  -r ${T1} --premat=${ruta}/mri/transforms/std2str.mat -o ./seg/priors1.nii.gz
 		$FSLDIR/bin/applywarp -i ${priors}/gm.nii.gz  -r ${T1} --premat=${ruta}/mri/transforms/std2str.mat -o ./seg/priors2.nii.gz
-		$FSLDIR/bin/applywarp -i ${priors}/wm.nii.gz  -r ${T1} --premat=${ruta}/mri/transforms/std2str.mat -o ./seg/priors3.nii.gz 
-		$FSLDIR/bin/fslmaths ./seg/priors3.nii.gz  -thr 0.01 -bin ./seg/priors3.nii.gz 
+		$FSLDIR/bin/applywarp -i ${priors}/wm.nii.gz  -r ${T1} --premat=${ruta}/mri/transforms/std2str.mat -o ./seg/priors3.nii.gz  
+		# $FSLDIR/bin/fslmaths ./seg/priors3.nii.gz  -thr 0.01 -bin ./seg/priors3.nii.gz 
 	fi
 
 	$FSLDIR/bin/fslmaths ${mask} -bin seg/seg_mask.nii.gz
-	# $FSLDIR/bin/fslmaths ./seg/priors3.nii.gz -bin ./seg/priors3.nii.gz
-	${ANTSPATH}/antsAtroposN4.sh -d 3  -x seg/seg_mask.nii.gz -a ${ruta}/${T1} -c 3 -o seg/ -p ./seg/priors%d.nii.gz -w 0.25
+	# $FSLDIR/bin/fslmaths ./seg/priors3.nii.gz -bin ./seg/priors3.nii.gz ##ants priors sum to 1 now.
+	${ANTSPATH}/antsAtroposN4.sh -d 3  -x seg/seg_mask.nii.gz -a ${ruta}/${T1} -c 3 -o seg/ -p ./seg/priors%d.nii.gz -w 0.5 ## changed to 0.5, originally 0.25 
 	$FSLDIR/bin/fslmaths ./seg/SegmentationPosteriors3.nii.gz -thr ${thresh} -bin mri/wm_orig
 
 	

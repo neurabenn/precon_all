@@ -2,6 +2,70 @@
 ###### the recommended input for this script is the output of precon_all run on your volumetric template. 
 
 source $FREESURFER_HOME/SetUpFreeSurfer.sh
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") <template_subject_dir> <group_file> <ico_order>
+
+Build a surface average from a set of existing precon_all subject directories,
+using one subject as the volumetric/template-space reference.
+
+Arguments:
+  template_subject_dir   Path to the template subject directory.
+                         This should be an existing precon_all subject directory.
+                         We recommed running perocn_all on your volumetric template and using that as the template space.
+
+  group_file             Text file containing one subject directory per line.
+                         Each listed directory should be a precon_all output
+                         directory for an individual subject.
+
+  ico_order              Icosahedral order for average surface generation.
+                         Example values are often 4, 5, or 6 depending on species
+                         and target surface density.
+
+What the script does:
+  1. Registers each subject's brain volume to the template subject brain with FLIRT.
+  2. Converts the linear transform to FreeSurfer-compatible talairach files.
+  3. Preserves existing transforms by copying them into mri/transforms/precon_all/.
+  4. Builds left and right average surfaces using a modified
+     make_average_surface_precon script.
+  5. Projects individual cortex/subcortex labels onto the average subject.
+  6. Merges propagated labels and reruns average-surface generation to produce
+     final stats.
+
+Requirements:
+  - FREESURFER_HOME must be set
+  - FSL must be installed and available
+  - PCP_PATH must be set
+  - The template subject must contain:
+      mri/brain.nii.gz
+  - Each subject in group_file should be a valid precon_all subject directory
+
+Notes:
+  - If a subject is missing label files, cortex_labelgen.sh will be run.
+  - Existing transforms are copied to mri/transforms/precon_all/ before update.
+  - The script edits a copied make_average_surface_precon helper script in-place.
+  - Run this from the directory you want to use as SUBJECTS_DIR, since the script
+    sets SUBJECTS_DIR to the current working directory.
+
+Examples:
+  $(basename "$0") /path/to/template_subject /path/to/group.txt 5
+
+group_file format:
+  /path/to/subj01
+  /path/to/subj02
+  /path/to/subj03
+EOF
+    exit 1
+}
+
+if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
+    usage
+fi
+
+if [ $# -ne 3 ]; then
+    echo "ERROR: expected 3 arguments"
+    usage
+fi
 ### where the template is an indidivual subject folder of surfaces
 ### group is a .txt file of all the subject folders i.e. the precon_all output directory of individuals
 temp=$1
@@ -130,5 +194,3 @@ sed -i.bak -e '294d' ${file}
 
 echo "${file} --no-annot --lh  --ico ${ico} --out avg_${name} --force  --subjects ${subject_list}"  |bash
 echo "${file} --no-annot --rh  --ico ${ico} --out avg_${name} --force --subjects ${subject_list}"  |bash
-
-

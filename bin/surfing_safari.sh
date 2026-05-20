@@ -15,8 +15,9 @@ Usage() {
     echo "-n no brain extraction. Using a previously extracted brain. only runs linear transforms. " 
     echo " -e < Brain extraction with ANTs instead of FNIRT using template space>"
     echo "-v down sample individual surfaces to a given resolution in HCP space. " 
-    echo " -t < Segmentation threshold default is 0.5 >"
+    echo " -t < Segmentation threshold default is 0.5 for FAST, 0.1 for ANTs >"
     echo " -s < Segment with ANTs AtroposN4 instead of FAST threshold default is 0.1 >"
+    echo " -g optional argument. Default NONE. Percentile within gray matter mask to place pial boundary. -- Should only be used in precon_3 refinement "
     echo " -L  Left Hemisphere only"
     echo " -R  Right Hemisphere only"
     echo "Optional Arguments" 
@@ -49,11 +50,12 @@ verts=""
 no_extract=""
 ants_extract=""
 ants_seg=""
+grey_pct=""
 L_only=""
 R_only=""
 help=""
 
-while getopts ":i:r:a:t:v:nseLRh" opt ; do 
+while getopts ":i:r:a:t:v:g:nseLRh" opt ; do 
     
 	case $opt in
 		i) i=1;
@@ -91,6 +93,9 @@ while getopts ":i:r:a:t:v:nseLRh" opt ; do
                 ;;
     e)
           ants_extract="y"
+                ;;
+    g)
+          grey_pct="$OPTARG"
                 ;;
     L)
           L_only="y"
@@ -267,14 +272,9 @@ mask=${brain/.nii.gz/_mask.nii.gz}
 ls ${brain_dir}
 
 
-
-
-echo "##### DEBUGGING  inserting ants compatibilty"
 # prepare brain image for segmentation. Denoise and N4 bias correction.
  ${ANTSPATH}/DenoiseImage -d 3 -i ${brain} -o sanlm_${brain} -v 1
 
-
-echo ${PCP_PATH}/bin/N4_pig.sh -i sanlm_${brain} -x ${mask}
 ${ANTSPATH}/N4BiasFieldCorrection -d 3 -i sanlm_${brain}   -c [100x100x100x100,0.0000000001] -b [200] -o sanlm_${brain/.nii.gz/_0N4.nii.gz}  --verbose 0 
 
 if [ -d $PCP_PATH/standards/${animal}/seg_priors ];then
@@ -336,7 +336,7 @@ cd ${dir}
 
  for hemi in "${side[@]}";do
  ### potentially change file to work as function.  
- run_step "precon_3: Making ${hemi} surface" ${PCP_PATH}/bin/tess_animal.sh -s ${brain_dir}  -h ${hemi}  -a 5
+ run_step "precon_3: Making ${hemi} surface" ${PCP_PATH}/bin/tess_animal.sh -s ${brain_dir}  -h ${hemi}  -a 5 -g ${grey_pct}
  done
 
 SUBJECTS_DIR=${dir}
@@ -440,7 +440,7 @@ mask=${brain/.nii.gz/_mask.nii.gz}
  ${ANTSPATH}/DenoiseImage -d 3 -i ${brain} -o sanlm_${brain} -v 1
 
 
-echo ${PCP_PATH}/bin/N4_pig.sh -i sanlm_${brain} -x ${mask}
+
 ${ANTSPATH}/N4BiasFieldCorrection -d 3 -i sanlm_${brain}   -c [100x100x100x100,0.0000000001] -b [200] -o sanlm_${brain/.nii.gz/_0N4.nii.gz}  --verbose 0 
 
 if [ -d $PCP_PATH/standards/${animal}/seg_priors ];then
@@ -509,7 +509,7 @@ cd ${dir}
 
  for hemi in "${side[@]}";do
  ### potentially change file to work as function.  
- run_step "precon_3: Making ${hemi} surface" ${PCP_PATH}/bin/tess_animal.sh -s ${brain_dir}  -h ${hemi}  -a 5
+ run_step "precon_3: Making ${hemi} surface" ${PCP_PATH}/bin/tess_animal.sh -s ${brain_dir}  -h ${hemi}  -a 5 -g ${grey_pct}
  done
 
 SUBJECTS_DIR=${dir}
@@ -579,7 +579,6 @@ pwd
 brain=$(basename ${brain_dir})_brain.nii.gz
 mask=${brain/.nii.gz/_mask.nii.gz}
 
-
 if [[ ${L_only} == "y" ]];then 
     echo "only filling left"
     run_step "precon_3: Filling left only" ${PCP_PATH}/bin/fill_animal.sh -i sanlm_${brain/.nii.gz/_0N4.nii.gz} -a ${animal} -L
@@ -602,7 +601,7 @@ cd ${dir}
 
  for hemi in "${side[@]}";do
  ### potentially change file to work as function.  
- run_step run_step "precon_3: Making ${hemi} surface" ${PCP_PATH}/bin/tess_animal.sh -s ${brain_dir}  -h ${hemi}  -a 5
+ run_step  "precon_3: Making ${hemi} surface" ${PCP_PATH}/bin/tess_animal.sh -s ${brain_dir}  -h ${hemi}  -a 5 -g ${grey_pct}
  done
 
 SUBJECTS_DIR=${dir}

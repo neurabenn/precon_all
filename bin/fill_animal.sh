@@ -201,6 +201,16 @@ else
 fi
 # ##################################################################################################################### end necesary edits
 
+
+   ### get binary gm mask from segmenation
+    if [ -f ../seg/SegmentationPosteriors2.nii.gz ]; then
+        fslmaths ../seg/SegmentationPosteriors2.nii.gz -thr 0.1 -bin gm_mask ### ants mask
+    else
+        fslmaths ../seg/seg_pve_2.nii.gz -thr 0.5 -bin gm_mask ### fsl mask
+    fi
+    #### get min grey value for pial expansion
+
+
 for img in `ls *.nii.gz`;do 
   iso_check ${img}
 done

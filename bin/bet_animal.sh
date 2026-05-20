@@ -1,4 +1,5 @@
 #!/bin/bash 
+source "${PCP_PATH}/bin/precon_logging.sh"
 Usage() {
     echo " "
     echo "Usage: `basename $0` [options] -i <T1_image> "
@@ -11,7 +12,7 @@ Usage() {
     echo " -p <prefix>  	                : Output prefix. Default output is T1_image_brain.  " 
     echo " -o <output_directory>          : Output directory. Default is directory of input image"
     echo " -d <y/n>                       : Enable or disbale denoising. Default is to denoise prior to brain extraction "
-    echo " -m <y/n>                       : do you have a predefined initial  "
+    echo " -m <y/n>                       : do you have a predefined initial affine matrix"
 	echo " -e 							  : Use ANTs for brain extraction and warps."
     echo " "
     echo "Example:  `basename $0` [options] -i pig_T1.nii.gz -p extract -o pig_brain_dir -d y  "
@@ -126,6 +127,7 @@ $FSLDIR/bin/fslorient -copyqform2sform sanlm_${T1}
 
 
 if [ "${ants_enabled}" != "1" ]; then
+	
 	if [[  -f ${premat}  ]] ;then
 
 		echo "##### Using a pre_extraction matrix ########"
@@ -161,10 +163,10 @@ else
 		echo "using premat / initial registration to guide brain extraction"
 		lta_convert --infsl ${premat} --outitk mri/transforms/pre_extract.txt --src sanlm_${T1} --trg ${temp}
 		ConvertTransformFile 3 mri/transforms/pre_extract.txt mri/transforms/pre_extract.mat --convertToAffineType
-		${ANTSPATH}/antsBrainExtraction.sh -d 3 -e ${temp} -a sanlm_${T1} -m ${prob_mask} -o ANTs  -r mri/transforms/pre_extract.mat  
+		${ANTSPATH}/antsBrainExtraction.sh -d 3 -e ${temp} -a sanlm_${T1} -m ${prob_mask} -o ANTs  -r mri/transforms/pre_extract.mat
 	else
 		echo "extracting brain -- no pre registration matrix"
-		${ANTSPATH}/antsBrainExtraction.sh -d 3 -e ${temp} -a sanlm_${T1} -m ${prob_mask} -o ANTs 	
+		${ANTSPATH}/antsBrainExtraction.sh -d 3 -e ${temp} -a sanlm_${T1} -m ${prob_mask} -o ANTs
 	fi
 		
 	## cleanup 
@@ -181,6 +183,47 @@ else
 	
 
 fi
+
+#####################################
+#### qiuck qc on brain extraction
+#### kill precon_all if bad
+$FSLDIR/bin/applywarp \
+    --in=${T1/.nii.gz/_brain_mask} \
+    --ref=${temp} \
+    --warp=mri/transforms/str2std_warp.nii.gz \
+    --interp=nn \
+    --out=qc_bet_in_template.nii.gz
+
+jaccard() {
+    local a="$1" b="$2"
+    local tmp; tmp=$(mktemp --suffix=.nii.gz)
+    $FSLDIR/bin/fslmaths "$a" -add "$b" -thr 1.5 "$tmp"
+    local va vb vi
+    va=$($FSLDIR/bin/fslstats "$a"   -V | awk '{print $1}')
+    vb=$($FSLDIR/bin/fslstats "$b"   -V | awk '{print $1}')
+    vi=$($FSLDIR/bin/fslstats "$tmp" -V | awk '{print $1}')
+    rm -f "$tmp"
+    awk -v i="$vi" -v a="$va" -v b="$vb" 'BEGIN{u=a+b-i; print (u>0)?i/u:0}'
+}
+
+
+fslmaths ${prob_mask} -bin template_brain_mask.nii.gz
+J=$(jaccard qc_bet_in_template.nii.gz template_brain_mask.nii.gz)
+event "[QC] BET Jaccard in template space: $J"
+rm qc_bet_in_template.nii.gz template_brain_mask.nii.gz
+
+if awk -v j="$J" 'BEGIN{exit (j<0.75)?0:1}'; then
+    event "[QC-FAIL] BET Jaccard $J < 0.75 -- brain extraction has likely failed. Visually inspect outputs before running precon_2"
+    event ""
+    event "If this was a random antsAI failure, retry the pipeline."
+    event "If it persists, create pre_extract.mat. Get preliminary or partially extracted brain with Bet. then register:"
+    event "  flirt -in <prelim_brain_extracted.nii.gz> -ref <brain_extracted_template.nii.gz> -omat \$(dirname ${img})/pre_extract.mat \\"
+    event "    -dof 12 -searchrx -180 180 -searchry -180 180 -searchrz -180 180"
+	
+    exit 1
+fi
+
+
 echo " End brain extraction "
 
 ### above is legacy... we're going to add an ANTs module / option. 
