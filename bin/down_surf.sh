@@ -62,13 +62,6 @@ out=${subj}/surf_${rd}
 mkdir -p ${out}
 echo ${out}
 
-#wb_command -surface-create-sphere ${verts} ${out}/${hemi}.sphere_${rd}.surf.gii
-
-
-#if [[ "${hemi}" == "lh" ]];then wb_command -set-structure ${out}/${hemi}.sphere_${rd}.surf.gii CORTEX_LEFT;fi 
-#if [[ "${hemi}" == "rh" ]];then wb_command -set-structure ${out}/${hemi}.sphere_${rd}.surf.gii CORTEX_RIGHT;fi 
-
-
 wb_command -surface-create-sphere ${verts} ${out}/${hemi}.sphere_${rd}.surf.gii
 
 if [[ "${hemi}" == "lh" ]];then
