@@ -62,11 +62,24 @@ out=${subj}/surf_${rd}
 mkdir -p ${out}
 echo ${out}
 
+#wb_command -surface-create-sphere ${verts} ${out}/${hemi}.sphere_${rd}.surf.gii
+
+
+#if [[ "${hemi}" == "lh" ]];then wb_command -set-structure ${out}/${hemi}.sphere_${rd}.surf.gii CORTEX_LEFT;fi 
+#if [[ "${hemi}" == "rh" ]];then wb_command -set-structure ${out}/${hemi}.sphere_${rd}.surf.gii CORTEX_RIGHT;fi 
+
+
 wb_command -surface-create-sphere ${verts} ${out}/${hemi}.sphere_${rd}.surf.gii
 
+if [[ "${hemi}" == "lh" ]];then
+    wb_command -surface-flip-lr ${out}/${hemi}.sphere_${rd}.surf.gii ${out}/${hemi}.sphere_${rd}.flip.surf.gii
+    mv ${out}/${hemi}.sphere_${rd}.flip.surf.gii ${out}/${hemi}.sphere_${rd}.surf.gii
+    wb_command -set-structure ${out}/${hemi}.sphere_${rd}.surf.gii CORTEX_LEFT
+fi 
 
-if [[ "${hemi}" == "lh" ]];then wb_command -set-structure ${out}/${hemi}.sphere_${rd}.surf.gii CORTEX_LEFT;fi 
 if [[ "${hemi}" == "rh" ]];then wb_command -set-structure ${out}/${hemi}.sphere_${rd}.surf.gii CORTEX_RIGHT;fi 
+
+
 for srf in white graymid midthickness pial inflated;do 
     wb_command -surface-resample ${subj}/surf/${hemi}.${srf}.surf.gii ${subj}/surf/${hemi}.sphere.surf.gii \
     ${out}/${hemi}.sphere_${rd}.surf.gii BARYCENTRIC ${out}/${hemi}.${srf}.surf.gii
