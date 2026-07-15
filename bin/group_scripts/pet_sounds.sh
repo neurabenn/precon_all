@@ -73,6 +73,26 @@ group=$2
 ico=$3
 #### first we'll change the dummy tailarach transforms to be a linear registration to the template subject
 
+log_dir="$(pwd)/logs"
+mkdir -p "${log_dir}"
+log_file="${log_dir}/pet_sounds_$(date +%Y%m%d_%H%M%S).log"
+
+on_exit() {
+    status=$?
+    set +x
+    echo "Ended at $(date)"
+    echo "Exit status: ${status}"
+}
+
+trap on_exit EXIT
+
+exec > >(tee -a "${log_file}") 2>&1
+set -x
+echo "Logging to ${log_file}"
+echo "Started at $(date)"
+echo "Host: $(hostname)"
+echo "Working directory: $(pwd)"
+
 
 ref=${temp}/mri/brain.nii.gz
 
@@ -120,7 +140,7 @@ done
 
 # echo "Here's la chicha.... this part can take a while "
 ###### make this an optino to run form the command line or not
-# $PCP_PATH/bin/group_scripts/make_surftemp.sh ${temp} ${group}
+$PCP_PATH/bin/group_scripts/make_surftemp.sh ${temp} ${group}
 
 
 
@@ -140,9 +160,10 @@ echo ${name}
 cp $PCP_PATH/bin/group_scripts/make_average_surface_precon `pwd`/make_average_surface_precon_${name}
 file=`pwd`/make_average_surface_precon_${name}
 
-# # ##### need to write a function which will let us determine the correct ico for each animal. i.e. closest to waht the raw surface has. 
 # # ##### for example pigs only have around 15K vertices. ico 5 is appropriate for them.
-sed -i .bak "s:mni305 = /Volumes/brain/template_surfs/average/mri/mni305.cor.mgz:mni305 = `pwd`/${ref/.nii.gz/.mgz}:g" ${file}
+# sed -i .bak "s:mni305 = /Volumes/brain/template_surfs/average/mri/mni305.cor.mgz:mni305 = `pwd`/${ref/.nii.gz/.mgz}:g" ${file}
+sed -i.bak "s:mni305 = /Volumes/brain/template_surfs/average/mri/mni305.cor.mgz:mni305 = $(pwd)/${ref/.nii.gz/.mgz}:g" "${file}"
+
 subject_list=$(cat ${group} | tr '\n' ' ')
 
 
