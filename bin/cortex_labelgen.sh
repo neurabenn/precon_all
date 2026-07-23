@@ -67,9 +67,38 @@ SUBJECTS_DIR=`pwd`
  mkdir -p ${subj}/label
  mkdir -p ${subj}/mri/cort_labels
 
+flip_handedness_orient() {
+  local orient="$1"
+  case "${orient:0:1}" in
+    R) echo "L${orient:1}" ;;
+    L) echo "R${orient:1}" ;;
+    *) echo "Cannot flip handedness for orientation: ${orient}" >&2; return 1 ;;
+  esac
+}
+
+brain_mgz="${subj}/mri/brain.mgz"
+det=$(mri_info "${brain_mgz}" | awk '/voxel-to-ras determinant/ {print $3}')
+native_orient=$(mri_info "${brain_mgz}" | awk -F': ' '/Orientation/ {print $2}')
+work_orient="${native_orient}"
+needs_flip=0
+
+if awk "BEGIN {exit !(${det} > 0)}"; then
+  needs_flip=1
+  work_orient=$(flip_handedness_orient "${native_orient}") || exit 1
+  echo "Determinant positive (${det}), flipping handedness from ${native_orient} to ${work_orient}  "
+else
+  echo "Determinant negative (${det}), no handedness flip needed"
+fi
+
+
 cd ${subj}
 
-cp mri/brain.mgz mri/aseg.mgz 
+if [ "$needs_flip" -eq 1 ]; then
+  mri_convert mri/brain.mgz mri/aseg.mgz --out_orientation "${work_orient}"
+else
+  mri_convert mri/brain.mgz mri/aseg.mgz --out_orientation "${native_orient}"
+fi
+
 #### set up the volumetric labels 
 
 len=`echo "${#side[@]}"`
@@ -92,7 +121,9 @@ else
 	echo "doing both"
 	mris_volmask --save_ribbon ${subj}
 	echo ${hemi[*]}
-	mri_convert mri/ribbon.mgz mri/ribbon.nii.gz 
+
+	mri_convert mri/ribbon.mgz mri/ribbon.nii.gz --out_orientation "${native_orient}"
+
 	fslmaths mri/ribbon.nii.gz -mas mri/sub_cort.nii.gz tmp_subc.nii.gz 
 	fslmaths mri/ribbon.nii.gz -sub tmp_subc.nii.gz  mri/ribbon.nii.gz -odt int
 	fslmaths mri/ribbon.nii.gz -uthr 21 -bin  mri/${hemi[0]}.ribbon.nii.gz 
