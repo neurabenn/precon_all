@@ -169,11 +169,27 @@ echo "### priors are being used. ADDING ANTS HERE####"
 		$FSLDIR/bin/applywarp -i ${priors}/wm.nii.gz  -r ${T1} -w ${ruta}/mri/transforms/std2str_warp.nii.gz  -o ./seg/priors3.nii.gz 
 		# $FSLDIR/bin/fslmaths ./seg/priors3.nii.gz  -thr 0.01 -bin ./seg/priors3.nii.gz 
 	else
-		echo "##### using linear transform of priors #####"
-		$FSLDIR/bin/applywarp -i ${priors}/csf.nii.gz  -r ${T1} --premat=${ruta}/mri/transforms/std2str.mat -o ./seg/priors1.nii.gz
-		$FSLDIR/bin/applywarp -i ${priors}/gm.nii.gz  -r ${T1} --premat=${ruta}/mri/transforms/std2str.mat -o ./seg/priors2.nii.gz
-		$FSLDIR/bin/applywarp -i ${priors}/wm.nii.gz  -r ${T1} --premat=${ruta}/mri/transforms/std2str.mat -o ./seg/priors3.nii.gz  
-		# $FSLDIR/bin/fslmaths ./seg/priors3.nii.gz  -thr 0.01 -bin ./seg/priors3.nii.gz 
+		### insert a non linear ants reg here. will give better segmentation
+		echo "##################################################################"
+		echo "generating non linear warp to template space with ANTs" 
+		temp_brain=$PCP_PATH/standards/${animal}/extraction/${animal}_brain.nii.gz ### template brain extracted brain
+		temp=$PCP_PATH/standards/${animal}/extraction/${animal}_temp.nii.gz ### template full head image
+		lta_convert --infsl mri/transforms/str2std.mat --outitk mri/transforms/str2std.txt\
+		--src ${T1} --trg ${temp_brain}
+		ConvertTransformFile 3  mri/transforms/str2std.txt  mri/transforms/str2std_ants.mat --convertToAffineType
+		fslmaths $PCP_PATH/standards/${animal}/extraction/brain_mask.nii.gz -bin mri/transforms/std_brain_mask.nii.gz
+
+		prefix=$(basename `pwd`)
+		${ANTSPATH}/antsRegistrationSyN.sh -d 3 -f ${temp} -m ${T1} -i mri/transforms/str2std_ants.mat \
+		-x  mri/transforms/std_brain_mask.nii.gz,${prefix}_brain_mask.nii.gz -o mri/transforms/ANTsREG
+		
+		${PCP_PATH}/bin/ants_to_fsl_warp.sh ${temp} ${T1} mri/transforms/ANTsREG1Warp.nii.gz mri/transforms/ANTsREG0GenericAffine.mat 
+
+
+		echo "##### using ants derived non-linear warp of priors #####"
+		$FSLDIR/bin/applywarp -i ${priors}/csf.nii.gz  -r ${T1} -w ${ruta}/mri/transforms/std2str_warp.nii.gz -o ./seg/priors1.nii.gz
+		$FSLDIR/bin/applywarp -i ${priors}/gm.nii.gz  -r ${T1} -w ${ruta}/mri/transforms/std2str_warp.nii.gz  -o ./seg/priors2.nii.gz
+		$FSLDIR/bin/applywarp -i ${priors}/wm.nii.gz  -r ${T1} -w ${ruta}/mri/transforms/std2str_warp.nii.gz  -o ./seg/priors3.nii.gz  
 	fi
 
 	$FSLDIR/bin/fslmaths ${mask} -bin seg/seg_mask.nii.gz

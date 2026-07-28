@@ -421,7 +421,6 @@ echo "extraction run."
 # ########## precon 2 steps ########### 
 
 if [ ${steps} == "precon_2" ];then 
-echo "extraction already run. now play with the rest"
 
 # ##### parse outputs of brain extraction. Save warps. and convert. 
 # ##### make mri directory here and mri/transforms

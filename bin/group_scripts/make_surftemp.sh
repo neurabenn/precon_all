@@ -9,86 +9,244 @@
 ###### 3rd iteration not specified 
 ###### 4th iteration using curv paterns
 
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") [--cluster <config_file>] <start_subject> <subjects_file>
 
-start=$1
-subjects=$2
-mkdir surf_temps
-out=surf_temps
-SUBJECTS_DIR=$(dirname ${start})
-SUBJECTS_DIR=`pwd`
-echo $SUBJECTS_DIR
-echo "############################## FIRST ITERATION ######################################"
-mris_make_template lh sphere ${start} ${out}/lh.temp0.tif
-mris_make_template rh sphere  ${start} ${out}/rh.temp0.tif
-for subj in `cat $subjects`;do 
-	for hemi in lh rh;do 
-		echo "doing spehrical registration"
-		##### edited out. this oshuld be reg0 
-		mris_register ${subj}/surf/${hemi}.sphere ${out}/${hemi}.temp0.tif ${subj}/surf/${hemi}.sphere.reg0 &
-	done
-done
-wait 
-echo "####################"
-echo "####################"
-echo "####################"
-echo "####################"
-echo "####################"
-mris_make_template lh sphere.reg0 `cat $subjects`  $PWD/${out}/lh.temp1.tif
-mris_make_template rh sphere.reg0 `cat $subjects`  $PWD/${out}/rh.temp1.tif
-# echo "############################## SECOND ITERATION ######################################"
-wait 
-for subj in `cat $subjects`;do 
-	for hemi in lh rh;do 
-		echo "pass"
-		mris_register ${subj}/surf/${hemi}.sphere ${out}/${hemi}.temp1.tif ${subj}/surf/${hemi}.sphere.reg1 
-	done
-done
+Arguments:
+  start_subject    starting/template subject directory
+  subjects_file    text file with one subject directory per line
 
+Options:
+  --cluster <config_file>   use Slurm config file
+EOF
+    exit 1
+}
 
-mris_make_template lh sphere.reg1 `cat $subjects`  $PWD/${out}/lh.temp2.tif
-mris_make_template rh sphere.reg1 `cat $subjects`  $PWD/${out}/rh.temp2.tif
+cluster=0
+cluster_config=""
+positionals=()
 
-echo "############################## THIRD ITERATION ######################################"
-for subj in `cat $subjects`;do 
-	for hemi in lh rh;do 
-		echo "pass"
-		mris_register ${subj}/surf/${hemi}.sphere ${out}/${hemi}.temp2.tif ${subj}/surf/${hemi}.sphere.reg2 
-	done
-
-done
-wait 
-
-mris_make_template lh sphere.reg2 `cat $subjects`  $PWD/${out}/lh.temp3.tif
-mris_make_template rh sphere.reg2 `cat $subjects`  $PWD/${out}/rh.temp3.tif
-
-echo "############################## FOURTH ITERATION ######################################"
-for subj in `cat $subjects`;do 
-	for hemi in lh rh;do 
-		echo "pass"
-		mris_register ${subj}/surf/${hemi}.sphere ${out}/${hemi}.temp3.tif ${subj}/surf/${hemi}.sphere.reg3 
-	done
-done
-wait 
-mris_make_template lh sphere.reg3 `cat $subjects`  $PWD/${out}/lh.temp4.tif
-mris_make_template rh sphere.reg3 `cat $subjects`  $PWD/${out}/rh.temp4.tif
-
-for subj in `cat $subjects`;do 
-	for hemi in lh rh;do 
-		echo "pass"
-		mris_register ${subj}/surf/${hemi}.sphere ${out}/${hemi}.temp4.tif ${subj}/surf/${hemi}.sphere.reg 
-	done
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --cluster)
+            [[ $# -ge 2 ]] || { echo "ERROR: --cluster requires a config file" >&2; usage; }
+            cluster=1
+            cluster_config=$2
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            positionals+=("$1")
+            shift
+            ;;
+    esac
 done
 
+if [[ ${#positionals[@]} -ne 2 ]]; then
+    echo "ERROR: expected 2 arguments" >&2
+    usage
+fi
+
+start=${positionals[0]}
+subjects=${positionals[1]}
+
+if [[ "$cluster" -eq 1 ]]; then
+    [[ -f "$cluster_config" ]] || { echo "ERROR: cluster config not found: $cluster_config" >&2; exit 1; }
+
+    source "$cluster_config"
+
+    : "${SLURM_PARTITION:?cluster config must set SLURM_PARTITION}"
+    : "${SLURM_TIME:?cluster config must set SLURM_TIME}"
+    : "${SLURM_MEM:?cluster config must set SLURM_MEM}"
+fi
+
+submit_worklist() {
+    worklist=$1
+    jobname=$2
+
+    mkdir -p "${out}/cluster_logs"
+    njobs=$(wc -l < "$worklist")
+
+    sbatch \
+        --wait \
+        --job-name="$jobname" \
+        -p "$SLURM_PARTITION" \
+        --time="$SLURM_TIME" \
+        --mem="$SLURM_MEM" \
+        --array=1-"$njobs" \
+        --output="${out}/cluster_logs/${jobname}_%A_%a.out" \
+        --error="${out}/cluster_logs/${jobname}_%A_%a.err" \
+        --export=ALL,WORKLIST="$worklist" <<'EOF'
+#!/bin/bash
+cmd=$(sed -n "${SLURM_ARRAY_TASK_ID}p" "$WORKLIST")
+eval "$cmd"
+EOF
+}
+
+mkdir -p "${start}/surf_temps"
+out="${start}/surf_temps"
+SUBJECTS_DIR=$(pwd)
+echo "SUBJECTS DIR IS $SUBJECTS_DIR"
+
+: > "${out}/init_worklist.txt"
+#### initial registration
+for subj in $(cat "$subjects"); do
+    for hemi in lh rh; do 
+        if [[ "$cluster" -eq 1 ]]; then
+            echo "$PCP_PATH/utils/register_surfaces.sh ${subj} ${start} ${hemi} init" >> "${out}/init_worklist.txt" 
+            mkdir -p "${start}/surf_temps/cluster_logs"
+        else
+            "$PCP_PATH/utils/register_surfaces.sh" "${subj}" "${start}" "${hemi}" init
+        fi
+    done
+done
+
+if [[ "$cluster" -eq 1 ]]; then
+    submit_worklist "${out}/init_worklist.txt" "reg_init"
+fi
+
+###code block determines if the inital registrations worked or were mirrored
+### uses the subcortex label generated during precon_all
+### checks if the subcortex (medial wall) labels overlap after registration
+### allows for orientation mismatches to be accounted for 
+: > "${out}/subjects_orientation.txt"
+for subj in $(cat "$subjects"); do
+    dice_lh=$($PCP_PATH/utils/calc_label_dice.sh "${subj}" lh subcortex subcortex.init)
+    dice_rh=$($PCP_PATH/utils/calc_label_dice.sh "${subj}" rh subcortex subcortex.init)
+
+    if awk "BEGIN {exit !(($dice_lh < 0.2) || ($dice_rh < 0.2))}"; then
+        echo "-r $subj" >> "${out}/subjects_orientation.txt"
+        echo "${subj} is mirrored"
+    else
+        echo "$subj" >> "${out}/subjects_orientation.txt"
+    fi
+done
 
 
+#### set up work lists
+: > "${out}/oriented_worklist.txt"
+### registration after mirror check
+while IFS= read -r reg_args; do
+# echo "$reg_args"
+    for hemi in lh rh; do 
+        cmd="$PCP_PATH/utils/register_surfaces.sh ${reg_args} ${start} ${hemi} oriented"
+        if [[ "$cluster" -eq 1 ]]; then
+            echo "$cmd" >> "${out}/oriented_worklist.txt"
+        else
+            echo "$cmd"
+            eval "$cmd"
+        fi
+    done
+done < "${out}/subjects_orientation.txt"
+
+if [[ "$cluster" -eq 1 ]]; then
+    submit_worklist "${out}/oriented_worklist.txt" "oriented"
+fi
+
+cp "${start}/surf/lh.sphere" "${start}/surf/lh.sphere.reg.oriented"
+cp "${start}/surf/rh.sphere" "${start}/surf/rh.sphere.reg.oriented"
+
+: > ${out}/subjs4tiftemplate.txt
+echo ${start} >> ${out}/subjects_orientation.txt ### add this to the subject orientation file so it can be included in subsequent templates
+echo ${start} > ${out}/subjs4tiftemplate.txt
+for subj in $(cat "$subjects"); do
+    echo ${subj} >> ${out}/subjs4tiftemplate.txt
+done
+
+mris_make_template lh sphere.reg.oriented `cat ${out}/subjs4tiftemplate.txt`  ${out}/lh.temp01.tif
+mris_make_template rh sphere.reg.oriented `cat ${out}/subjs4tiftemplate.txt`  ${out}/rh.temp01.tif
+
+#### set up work lists
+: > "${out}/worklist_temp1.txt"
+### registration after mirror check
+while IFS= read -r reg_args; do
+    for hemi in lh rh; do 
+        cmd="$PCP_PATH/utils/register_surfaces.sh ${reg_args} ${out}/${hemi}.temp01.tif ${hemi} tif_01"
+        if [[ "$cluster" -eq 1 ]]; then
+            echo "$cmd" >> "${out}/worklist_temp1.txt"
+        else
+            echo "$cmd"
+            eval "$cmd"
+        fi
+    done
+done < "${out}/subjects_orientation.txt"
+
+if [[ "$cluster" -eq 1 ]]; then
+    submit_worklist "${out}/worklist_temp1.txt" "tif_1"
+fi
 
 
+mris_make_template lh sphere.reg.tif_01 `cat ${out}/subjs4tiftemplate.txt`  ${out}/lh.temp02.tif
+mris_make_template rh sphere.reg.tif_01 `cat ${out}/subjs4tiftemplate.txt`  ${out}/rh.temp02.tif
+
+#### set up work lists
+: > "${out}/worklist_temp2.txt"
+### registration after mirror check
+while IFS= read -r reg_args; do
+    for hemi in lh rh; do 
+        cmd="$PCP_PATH/utils/register_surfaces.sh ${reg_args} ${out}/${hemi}.temp02.tif ${hemi} tif_02"
+        if [[ "$cluster" -eq 1 ]]; then
+            echo "$cmd" >> "${out}/worklist_temp2.txt"
+        else
+            echo "$cmd"
+            eval "$cmd"
+        fi
+    done
+done < "${out}/subjects_orientation.txt"
+
+if [[ "$cluster" -eq 1 ]]; then
+    submit_worklist "${out}/worklist_temp2.txt" "tif_2"
+fi
+
+mris_make_template lh sphere.reg.tif_02 `cat ${out}/subjs4tiftemplate.txt`  ${out}/lh.temp03.tif
+mris_make_template rh sphere.reg.tif_02 `cat ${out}/subjs4tiftemplate.txt`  ${out}/rh.temp03.tif
+
+#### set up work lists
+: > "${out}/worklist_temp3.txt"
+### registration after mirror check
+while IFS= read -r reg_args; do
+    for hemi in lh rh; do 
+        cmd="$PCP_PATH/utils/register_surfaces.sh ${reg_args} ${out}/${hemi}.temp03.tif ${hemi} tif_03"
+        if [[ "$cluster" -eq 1 ]]; then
+            echo "$cmd" >> "${out}/worklist_temp3.txt"
+        else
+            echo "$cmd"
+            eval "$cmd"
+        fi
+    done
+done < "${out}/subjects_orientation.txt"
+
+if [[ "$cluster" -eq 1 ]]; then
+    submit_worklist "${out}/worklist_temp3.txt" "tif_3"
+fi
 
 
+mris_make_template lh sphere.reg.tif_03 `cat ${out}/subjs4tiftemplate.txt`  ${out}/lh.temp04.tif
+mris_make_template rh sphere.reg.tif_03 `cat ${out}/subjs4tiftemplate.txt`  ${out}/rh.temp04.tif
 
+: > "${out}/worklist_temp4.txt"
+while IFS= read -r reg_args; do
+    for hemi in lh rh; do 
+        cmd="$PCP_PATH/utils/register_surfaces.sh ${reg_args} ${out}/${hemi}.temp04.tif ${hemi} tif_04"
+        if [[ "$cluster" -eq 1 ]]; then
+            echo "$cmd" >> "${out}/worklist_temp4.txt"
+        else
+            echo "$cmd"
+            eval "$cmd"
+        fi
+    done
+done < "${out}/subjects_orientation.txt"
 
+if [[ "$cluster" -eq 1 ]]; then
+    submit_worklist "${out}/worklist_temp4.txt" "tif_4"
+fi
 
+for subj in $(cat "${out}/subjs4tiftemplate.txt"); do 
+    cp "${subj}/surf/lh.sphere.reg.tif_04" "${subj}/surf/lh.sphere.reg"
+    cp "${subj}/surf/rh.sphere.reg.tif_04" "${subj}/surf/rh.sphere.reg"
+done
 
-
-
-
+echo "Done making registration template. Final registrations stores in ?h.sphere.reg to build average surfaces. "

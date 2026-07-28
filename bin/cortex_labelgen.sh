@@ -63,6 +63,7 @@ echo ${hemi[*]}
 
 
 SUBJECTS_DIR=`pwd`
+outer_dir=`pwd`
 
  mkdir -p ${subj}/label
  mkdir -p ${subj}/mri/cort_labels
@@ -142,3 +143,14 @@ for i  in `ls ?h.ribbon.nii.gz`;do
 	mri_vol2label --i ${hem}.cort_srf.mgh --id 1  --surf ${subj}  ${hem}  --l ../label/${hem}.cortex
 	mri_vol2label --i ${hem}.cort_srf.mgh --id 0  --surf ${subj}  ${hem}  --l ../label/${hem}.subcortex
 done
+
+### finally make an annotation of cortex and non cortex. 
+### this can help improve mris_registration down stream. 
+### allows registration to zero out medial wall instead of including it
+cd ../label 
+ln -s lh.subcortex.label lh.Unknown.label
+ln -s rh.subcortex.label rh.Unknown.label
+
+cd ${outer_dir}
+mris_label2annot --s ${subj} --h lh --ctab $PCP_PATH/standards/cort.annot.ctab --l ${subj}/label/lh.Unknown.label --l ${subj}/label/lh.cortex.label --surf white --a Cortex
+mris_label2annot --s ${subj} --h rh --ctab $PCP_PATH/standards/cort.annot.ctab --l ${subj}/label/rh.Unknown.label --l ${subj}/label/rh.cortex.label --surf white --a Cortex
