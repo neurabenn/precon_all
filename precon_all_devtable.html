@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>precon_all Dev Table — Process Flow</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#6b6b6b; --line:#d9d6cf; --line2:#eceae4;
+    --paper:#fbfaf7; --band:#2f3b30; --bandink:#f3f1ea;
+    --cmd:#f4f2ec; --cmdink:#232323;
+    --fs:#2d6a4f; --fsl:#1d4e89; --ants:#9a3412; --afni:#6b21a8; --wb:#a16207;
+    --stepbg:#efeee8;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:40px 22px 90px}
+  header.masthead{border-bottom:3px double var(--ink); padding-bottom:18px; margin-bottom:26px}
+  h1{font-size:30px; margin:0 0 4px; letter-spacing:-.01em}
+  h1 .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:26px}
+  .sub{color:var(--muted); font-size:15px; margin:0}
+  .lede{font-size:15px; max-width:78ch; margin:16px 0 0}
+  .lede code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; background:var(--cmd); padding:1px 5px; border-radius:3px}
+  a{color:var(--fsl); text-decoration:none; border-bottom:1px solid rgba(29,78,137,.3)}
+
+  /* legend */
+  .legend{display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center;
+    margin:22px 0 8px; padding:12px 14px; background:#fff; border:1px solid var(--line); border-radius:6px}
+  .legend .ll{font-size:12.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-right:4px}
+  .tag{display:inline-block; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px;
+    font-weight:700; letter-spacing:.03em; color:#fff; padding:2px 7px; border-radius:4px; vertical-align:middle}
+  .tag.fs{background:var(--fs)} .tag.fsl{background:var(--fsl)} .tag.ants{background:var(--ants)}
+  .tag.afni{background:var(--afni)} .tag.wb{background:var(--wb)}
+  .note{font-size:13px; color:var(--muted); margin:6px 2px 0}
+
+  /* module band */
+  .module{margin-top:40px}
+  .band{background:var(--band); color:var(--bandink); padding:11px 16px; border-radius:6px 6px 0 0;
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:14px; font-weight:700; letter-spacing:.01em;
+    display:flex; flex-wrap:wrap; gap:6px 14px; align-items:baseline}
+  .band .mtitle{font-size:15px}
+  .band .mdesc{font-family:"Iowan Old Style",Georgia,serif; font-weight:400; font-size:13px; color:#c8d3c4}
+
+  table{width:100%; border-collapse:collapse; background:#fff; font-size:13.5px}
+  thead th{background:var(--stepbg); color:#333; text-align:left; font-weight:700; font-size:11.5px;
+    text-transform:uppercase; letter-spacing:.07em; padding:8px 12px; border-bottom:2px solid var(--line);
+    position:sticky; top:0; z-index:2}
+  th.c-step{width:15%} th.c-in{width:22%} th.c-cmd{width:44%} th.c-out{width:19%}
+  tbody td{padding:9px 12px; border-bottom:1px solid var(--line2); vertical-align:top}
+  tbody tr:hover{background:#fcfbf8}
+  .sub-band td{background:#f6f5f0; border-bottom:1px solid var(--line);
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; font-weight:700; color:#444; letter-spacing:.02em}
+  .sub-band .loc{float:right; font-weight:400; color:var(--muted)}
+  .step{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; color:#333; font-weight:600}
+  .io{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px; color:#3a3a3a; line-height:1.55}
+  .io span{display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .cmd{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:11.5px; color:var(--cmdink);
+    line-height:1.55; white-space:pre-wrap; word-break:break-word}
+  .cmd b{font-weight:700}
+  .opt{color:#7a5}
+  td .tag{margin-bottom:6px}
+  .muted{color:var(--muted)}
+  .foot{margin-top:46px; padding-top:16px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+  .foot code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px}
+  @media (max-width:760px){
+    th.c-in,td.c-in{display:none}
+    th.c-step{width:26%} th.c-cmd{width:52%} th.c-out{width:22%}
+    .wrap{padding:24px 12px 60px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <h1><span class="mono">precon_all</span> &mdash; Process Flow (Dev Table)</h1>
+  <p class="sub">Preclinical / animal cortical surface reconstruction &nbsp;·&nbsp; driver: <span style="font-family:ui-monospace,Menlo,monospace">surfing_safari.sh</span></p>
+  <p class="lede">Modeled on FreeSurfer&rsquo;s <a href="https://surfer.nmr.mgh.harvard.edu/fswiki/ReconAllDevTable">ReconAllDevTable</a>. Each <strong>module</strong> (<code>-r precon_1 … precon_art</code>) is the analogue of <code>recon-all -autorecon1/2/3</code>; within it, steps run top-to-bottom. Commands are the real invocations from the repo (<code>bin/</code>, <code>bin/group_scripts/</code>, <code>utils/</code>), with the source file and line noted on each step band. Run with <code>surfing_safari.sh -i &lt;T1.nii.gz&gt; -r precon_all -a &lt;animal&gt;</code>. <code>?h</code> = lh / rh.</p>
+
+  <div class="legend">
+    <span class="ll">Toolkit</span>
+    <span><span class="tag fs">FS</span> FreeSurfer</span>
+    <span><span class="tag fsl">FSL</span> FSL</span>
+    <span><span class="tag ants">ANTS</span> ANTs</span>
+    <span><span class="tag afni">AFNI</span> AFNI</span>
+    <span><span class="tag wb">WB</span> Workbench</span>
+  </div>
+  <p class="note">Branch points (either/or) are marked <em>[FNIRT]/[ANTs]</em> for extraction and <em>[FAST]/[Atropos]</em> for segmentation. <code>${ANTSPATH}</code> / <code>$FSLDIR/bin</code> prefixes omitted for readability.</p>
+</header>
+
+<!-- ============================ PRECON_1 ============================ -->
+<section class="module">
+  <div class="band">
+    <span class="mtitle">surfing_safari.sh -r precon_1</span>
+    <span class="mdesc">Brain extraction only (pipeline step 1). Also the first stage of <code>precon_all</code>.</span>
+  </div>
+  <table>
+    <thead><tr>
+      <th class="c-step">Step / flag</th><th class="c-in">Input</th><th class="c-cmd">Command line</th><th class="c-out">Output</th>
+    </tr></thead>
+    <tbody>
+      <tr class="sub-band"><td colspan="4">bet_animal.sh &nbsp;— brain extraction (called with <span class="muted">-d y</span> denoise; <span class="muted">-e</span> = ANTs path; <span class="muted">-m</span> = prior <code>pre_extract.mat</code>)<span class="loc">bin/bet_animal.sh</span></td></tr>
+
+      <tr>
+        <td class="step">denoise</td>
+        <td class="io"><span>${T1}</span></td>
+        <td class="cmd"><span class="tag ants">ANTS</span><b>DenoiseImage</b> <span class="opt">-d</span> 3 <span class="opt">-i</span> ${T1} <span class="opt">-o</span> sanlm_${T1} <span class="opt">-v</span></td>
+        <td class="io"><span>sanlm_${T1}</span></td>
+      </tr>
+      <tr>
+        <td class="step">clamp + hdr</td>
+        <td class="io"><span>sanlm_${T1}</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>fslmaths</b> sanlm_${T1} <span class="opt">-thr</span> 0 sanlm_${T1}
+<span class="tag fsl">FSL</span><b>fslorient</b> <span class="opt">-copyqform2sform</span> sanlm_${T1}</td>
+        <td class="io"><span>sanlm_${T1}</span></td>
+      </tr>
+
+      <tr>
+        <td class="step">register <span class="muted">[FNIRT]</span></td>
+        <td class="io"><span>sanlm_${T1}</span><span>${temp} (template)</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>flirt</b> <span class="opt">-in</span> sanlm_${T1} <span class="opt">-ref</span> ${temp} <span class="opt">-dof</span> 12 <span class="opt">-omat</span> transforms/init.mat <span class="opt">-searchrx/ry/rz</span> -180 180 <span class="opt">-out</span> str_2std_linear
+<span class="tag fsl">FSL</span><b>fnirt</b> <span class="opt">--in=</span>sanlm_${T1} <span class="opt">--ref=</span>${temp} <span class="opt">--cout=</span>transforms/str2std_warp <span class="opt">-v --aff=</span>transforms/init.mat</td>
+        <td class="io"><span>transforms/init.mat</span><span>transforms/str2std_warp</span></td>
+      </tr>
+      <tr>
+        <td class="step">invert + mask <span class="muted">[FNIRT]</span></td>
+        <td class="io"><span>str2std_warp</span><span>${prob_mask}</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>invwarp</b> <span class="opt">--warp=</span>transforms/str2std_warp <span class="opt">--ref=</span>sanlm_${T1} <span class="opt">--out=</span>transforms/std2str_warp
+<span class="tag fsl">FSL</span><b>applywarp</b> <span class="opt">--in=</span>${prob_mask} <span class="opt">--ref=</span>sanlm_${T1} <span class="opt">--interp=</span>nn <span class="opt">--warp=</span>transforms/std2str_warp <span class="opt">--out=</span>${T1}_brain_mask
+<span class="tag fsl">FSL</span><b>fslmaths</b> sanlm_${T1} <span class="opt">-mas</span> ${T1}_brain_mask ${T1}_brain</td>
+        <td class="io"><span>std2str_warp</span><span>*_brain_mask</span><span>*_brain</span></td>
+      </tr>
+
+      <tr>
+        <td class="step">register <span class="muted">[ANTs -e]</span></td>
+        <td class="io"><span>sanlm_${T1}</span><span>${premat} (opt)</span><span>${prob_mask}</span></td>
+        <td class="cmd"><span class="tag ants">ANTS</span><b>ImageMath</b> 3 sanlm_${T1} TruncateImageIntensity sanlm_${T1} 0.05 0.999
+<span class="tag fs">FS</span><b>lta_convert</b> <span class="opt">--infsl</span> ${premat} <span class="opt">--outitk</span> transforms/pre_extract.txt <span class="opt">--src</span> sanlm_${T1} <span class="opt">--trg</span> ${temp}
+<span class="tag ants">ANTS</span><b>ConvertTransformFile</b> 3 pre_extract.txt pre_extract.mat <span class="opt">--convertToAffineType</span>
+<span class="tag ants">ANTS</span><b>antsBrainExtraction.sh</b> <span class="opt">-d</span> 3 <span class="opt">-e</span> ${temp} <span class="opt">-a</span> sanlm_${T1} <span class="opt">-m</span> ${prob_mask} <span class="opt">-o</span> ANTs [<span class="opt">-r</span> pre_extract.mat]
+<span class="tag ants">ANTS</span><b>antsRegistrationSyN.sh</b> <span class="opt">-d</span> 3 <span class="opt">-f</span> ${temp} <span class="opt">-m</span> sanlm_${T1} <span class="opt">-x</span> std_brain_mask,${T1}_brain_mask <span class="opt">-o</span> transforms/ANTsREG
+<span class="tag fsl">FSL</span><b>fslmaths</b> sanlm_${T1} <span class="opt">-mas</span> ${T1}_brain_mask ${T1}_brain</td>
+        <td class="io"><span>ANTsBrainExtraction*</span><span>ANTsREG* warps</span><span>*_brain / _mask</span></td>
+      </tr>
+      <tr>
+        <td class="step">QC</td>
+        <td class="io"><span>*_brain_mask</span><span>${temp}</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>applywarp</b> <span class="opt">--in=</span>${T1}_brain_mask <span class="opt">--ref=</span>${temp} <span class="opt">--warp=</span>transforms/str2std_warp <span class="opt">--interp=</span>nn <span class="opt">--out=</span>qc_bet_in_template</td>
+        <td class="io"><span>qc_bet_in_template</span></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================ PRECON_2 ============================ -->
+<section class="module">
+  <div class="band">
+    <span class="mtitle">surfing_safari.sh -r precon_2</span>
+    <span class="mdesc">Denoise &rarr; N4 &rarr; segmentation, then hands off to the precon_3 fill/surface steps.</span>
+  </div>
+  <table>
+    <thead><tr>
+      <th class="c-step">Step / flag</th><th class="c-in">Input</th><th class="c-cmd">Command line</th><th class="c-out">Output</th>
+    </tr></thead>
+    <tbody>
+      <tr class="sub-band"><td colspan="4">intensity prep (top-level driver)<span class="loc">bin/surfing_safari.sh</span></td></tr>
+      <tr>
+        <td class="step">denoise</td>
+        <td class="io"><span>${brain}</span></td>
+        <td class="cmd"><span class="tag ants">ANTS</span><b>DenoiseImage</b> <span class="opt">-d</span> 3 <span class="opt">-i</span> ${brain} <span class="opt">-o</span> sanlm_${brain} <span class="opt">-v</span> 1</td>
+        <td class="io"><span>sanlm_${brain}</span></td>
+      </tr>
+      <tr>
+        <td class="step">N4 bias</td>
+        <td class="io"><span>sanlm_${brain}</span></td>
+        <td class="cmd"><span class="tag ants">ANTS</span><b>N4BiasFieldCorrection</b> <span class="opt">-d</span> 3 <span class="opt">-i</span> sanlm_${brain} <span class="opt">-c</span> [100x100x100x100,1e-10] <span class="opt">-b</span> [200] <span class="opt">-o</span> sanlm_..._0N4.nii.gz <span class="opt">--verbose</span> 0</td>
+        <td class="io"><span>sanlm_*_0N4.nii.gz</span></td>
+      </tr>
+
+      <tr class="sub-band"><td colspan="4">seg_animal.sh &nbsp;— tissue segmentation (<span class="muted">-s</span> = ANTs Atropos; else FSL FAST; <span class="muted">-p</span> = priors)<span class="loc">bin/seg_animal.sh</span></td></tr>
+      <tr>
+        <td class="step">std&rarr;str init</td>
+        <td class="io"><span>${animal}_brain</span><span>${T1}</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>flirt</b> <span class="opt">-in</span> standards/${animal}/${animal}_brain <span class="opt">-ref</span> ${T1} <span class="opt">-omat</span> seg/std2str.mat <span class="opt">-searchrx/ry/rz</span> -180 180
+<span class="tag fsl">FSL</span><b>convert_xfm</b> <span class="opt">-omat</span> transforms/str2std.mat <span class="opt">-inverse</span> transforms/std2str.mat</td>
+        <td class="io"><span>std2str.mat</span><span>str2std.mat</span></td>
+      </tr>
+      <tr>
+        <td class="step">priors&rarr;native</td>
+        <td class="io"><span>priors/{csf,gm,wm}</span><span>std2str_warp</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>applywarp</b> <span class="opt">-i</span> ${priors}/csf|gm|wm <span class="opt">-r</span> ${T1} <span class="opt">-w</span> transforms/std2str_warp <span class="opt">-o</span> seg/priors1|2|3.nii.gz  <span class="muted">(when priors present; SyN path also builds warp via lta_convert &rarr; ConvertTransformFile &rarr; antsRegistrationSyN.sh)</span></td>
+        <td class="io"><span>seg/priors{1,2,3}</span></td>
+      </tr>
+      <tr>
+        <td class="step">segment <span class="muted">[FAST]</span></td>
+        <td class="io"><span>${T1}</span><span>str2std.mat, priors (opt)</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>fast</b> <span class="opt">-B</span> <span class="opt">-n</span> 3 <span class="opt">-o</span> seg/seg ${T1}   <span class="muted">— or with priors:</span>
+<span class="tag fsl">FSL</span><b>fast</b> <span class="opt">-B -v -n</span> 3 <span class="opt">-a</span> transforms/std2str.mat <span class="opt">-A</span> csf gm wm <span class="opt">-o</span> seg/seg ${T1}
+<span class="tag fsl">FSL</span><b>fslmaths</b> seg/seg_pve_2 <span class="opt">-thr</span> ${thresh} <span class="opt">-bin</span> mri/wm_orig</td>
+        <td class="io"><span>seg/seg_pve_*</span><span>mri/wm_orig</span></td>
+      </tr>
+      <tr>
+        <td class="step">segment <span class="muted">[Atropos]</span></td>
+        <td class="io"><span>${T1}</span><span>seg/seg_mask</span><span>priors (opt)</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>fslmaths</b> ${mask} <span class="opt">-bin</span> seg/seg_mask.nii.gz
+<span class="tag ants">ANTS</span><b>antsAtroposN4.sh</b> <span class="opt">-d</span> 3 <span class="opt">-x</span> seg/seg_mask <span class="opt">-a</span> ${T1} <span class="opt">-c</span> 3 <span class="opt">-o</span> seg/ [<span class="opt">-p</span> seg/priors%d.nii.gz] <span class="opt">-w</span> 0.25|0.5
+<span class="tag fsl">FSL</span><b>fslmaths</b> seg/SegmentationPosteriors3 <span class="opt">-thr</span> ${thresh} <span class="opt">-bin</span> mri/wm_orig</td>
+        <td class="io"><span>seg/Segmentation*</span><span>mri/wm_orig</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="note">After segmentation, <code>precon_2</code> continues into the <strong>precon_3</strong> fill &rarr; tessellate &rarr; surface &rarr; label &rarr; ribbon steps below, then optional <strong>precon_4</strong> downsampling.</p>
+</section>
+
+<!-- ============================ PRECON_3 ============================ -->
+<section class="module">
+  <div class="band">
+    <span class="mtitle">surfing_safari.sh -r precon_3</span>
+    <span class="mdesc">WM fill &amp; surface generation (assumes segmentation exists). <code>-L</code>/<code>-R</code> = single hemisphere.</span>
+  </div>
+  <table>
+    <thead><tr>
+      <th class="c-step">Step / flag</th><th class="c-in">Input</th><th class="c-cmd">Command line</th><th class="c-out">Output</th>
+    </tr></thead>
+    <tbody>
+      <!-- fill_animal -->
+      <tr class="sub-band"><td colspan="4">fill_animal.sh &nbsp;— isometric conform, WM fill, build FreeSurfer volumes<span class="loc">bin/fill_animal.sh</span></td></tr>
+      <tr>
+        <td class="step">isometrize</td>
+        <td class="io"><span>${img} (pixdims)</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>fslinfo</b> ${img} <span class="muted">→ pixdim1/2/3</span>
+<span class="tag fsl">FSL</span><b>flirt</b> <span class="opt">-in</span> ${img} <span class="opt">-ref</span> ${img} <span class="opt">-out</span> ${img} <span class="opt">-applyisoxfm</span> ${max} <span class="opt">-interp</span> nearestneighbour <span class="opt">-noresampblur</span> <span class="opt">-omat</span> transforms/isometrize.mat
+<span class="tag fsl">FSL</span><b>convert_xfm</b> <span class="opt">-omat</span> transforms/inverse_iso.mat <span class="opt">-inverse</span> isometrize.mat
+<span class="tag fsl">FSL</span><b>convert_xfm</b> <span class="opt">-omat</span> str2std_iso.mat <span class="opt">-concat</span> str2std.mat inverse_iso.mat</td>
+        <td class="io"><span>isometrize.mat</span><span>inverse_iso.mat</span><span>str2std_iso.mat</span></td>
+      </tr>
+      <tr>
+        <td class="step">talairach stubs</td>
+        <td class="io"><span>brain.nii.gz</span><span>ident.mat / str2std.mat</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>lta_convert</b> <span class="opt">--infsl</span> ident.mat <span class="opt">--outlta</span> transforms/talairach.lta <span class="opt">--src</span> brain <span class="opt">--trg</span> brain
+<span class="tag fs">FS</span><b>lta_convert</b> <span class="opt">--infsl</span> ident.mat <span class="opt">--outmni</span> transforms/talairach.xfm <span class="opt">--src</span> brain <span class="opt">--trg</span> brain</td>
+        <td class="io"><span>talairach.lta</span><span>talairach.xfm</span></td>
+      </tr>
+      <tr>
+        <td class="step">masks&rarr;native</td>
+        <td class="io"><span>${mask} (hem/sub_cort/non_cort)</span><span>std2str.mat</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>flirt</b> <span class="opt">-in</span> ${mask} <span class="opt">-ref</span> ${anat} <span class="opt">-out</span> ${out} <span class="opt">-interp</span> nearestneighbour <span class="opt">-applyxfm -init</span> transforms/std2str.mat
+<span class="tag fsl">FSL</span><b>fslmaths</b> ${out} <span class="opt">-thr</span> 0.3 <span class="opt">-bin</span> ${out}</td>
+        <td class="io"><span>native masks</span></td>
+      </tr>
+      <tr>
+        <td class="step">WM fill / intensity</td>
+        <td class="io"><span>rawavg</span><span>${wm_seg}</span><span>sub_cort, hem masks</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>fslstats</b> rawavg <span class="opt">-R</span> <span class="muted">(intensity ceiling)</span>
+<span class="tag fsl">FSL</span><b>fslmaths</b> rawavg <span class="opt">-div</span> $upper <span class="opt">-mul</span> 150 nu <span class="opt">-odt</span> int
+<span class="tag fsl">FSL</span><b>fslmaths</b> chains build: nu_wm, wm+SC, wm_110(+SC), brain, brainmask, sub_cort250, wm, wm_pre_fill (<span class="opt">-fillh</span>), wm_${hemi} (<span class="opt">-mul</span> 255/127), filled
+<span class="tag fsl">FSL</span><b>imrm</b> brain_rm_sc</td>
+        <td class="io"><span>wm, filled</span><span>brain, brainmask</span><span>*_brain (per-hemi)</span></td>
+      </tr>
+      <tr>
+        <td class="step">to FS volumes</td>
+        <td class="io"><span>*.nii.gz volumes</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mri_convert</b> {left|right}_brain → ?h.brain.finalsurfs.mgz
+<span class="tag fs">FS</span><b>mri_convert</b> brain/brainmask/wm/filled/wm_orig/T1/nu/orig → *.mgz
+<span class="tag fs">FS</span><b>mri_mask</b> <span class="opt">-T</span> 5 brain.mgz brainmask.mgz brain.finalsurfs.mgz
+<span class="tag fs">FS</span><b>mri_pretess</b> filled.mgz 255 T1.mgz filled-pretess255.mgz
+<span class="tag fs">FS</span><b>mri_pretess</b> filled.mgz 127 T1.mgz filled-pretess127.mgz</td>
+        <td class="io"><span>*.mgz volumes</span><span>filled-pretess{255,127}.mgz</span></td>
+      </tr>
+
+      <!-- tess_animal -->
+      <tr class="sub-band"><td colspan="4">tess_animal.sh &nbsp;— tessellation, topology fix, white/pial, curvature, sphere &nbsp;(per hemi)<span class="loc">bin/tess_animal.sh</span></td></tr>
+      <tr>
+        <td class="step">prep</td>
+        <td class="io"><span>brain.mgz, brainmask.mgz</span><span>gm_mask</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mri_mask</b> <span class="opt">-T</span> 5 brain.mgz brainmask.mgz brain.finalsurfs.mgz
+<span class="tag fs">FS</span><b>mri_convert</b> brain.finalsurfs.mgz brain.finalsurfs.nii.gz
+<span class="tag fsl">FSL</span><b>fslstats</b> brain.finalsurfs.nii.gz <span class="opt">-k</span> gm_mask <span class="opt">-P</span> ${grey_pct} <span class="muted">→ min_gray</span></td>
+        <td class="io"><span>brain.finalsurfs.*</span><span>min_gray</span></td>
+      </tr>
+      <tr>
+        <td class="step">tessellate</td>
+        <td class="io"><span>filled-pretess{255,127}.mgz</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mri_tessellate</b> filled-pretess255.mgz 255 lh.orig.nofix
+<span class="tag fs">FS</span><b>mri_tessellate</b> filled-pretess127.mgz 127 rh.orig.nofix
+<span class="tag fs">FS</span><b>mris_info</b> ?h.orig.nofix <span class="muted">→ num vertices</span></td>
+        <td class="io"><span>?h.orig.nofix</span></td>
+      </tr>
+      <tr>
+        <td class="step">decimate <span class="muted">(if huge)</span></td>
+        <td class="io"><span>?h.orig.nofix</span></td>
+        <td class="cmd"><span class="tag wb">WB</span><b>wb_command</b> <span class="opt">-surface-create-sphere</span> 150000 Sphere.150k.R.surf.gii
+<span class="tag fs">FS</span><b>mris_smooth</b> <span class="opt">-nw</span> … ; <span class="tag fs">FS</span><b>mris_inflate</b> <span class="opt">-n</span> 30 <span class="opt">-no-save-sulc</span> … ; <span class="tag fs">FS</span><b>mris_sphere</b> <span class="opt">-q -seed</span> 1234 …
+<span class="tag fs">FS</span><b>mris_convert</b> ↔ <span class="tag wb">WB</span><b>wb_command</b> <span class="opt">-surface-resample</span> … BARYCENTRIC …</td>
+        <td class="io"><span>decimated ?h.orig.nofix</span></td>
+      </tr>
+      <tr>
+        <td class="step">smooth1 / inflate1 / qsphere</td>
+        <td class="io"><span>?h.orig.nofix</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mris_extract_main_component</b> ?h.orig.nofix ?h.orig.nofix
+<span class="tag fs">FS</span><b>mris_smooth</b> <span class="opt">-nw</span> ?h.orig.nofix ?h.smoothwm.nofix
+<span class="tag fs">FS</span><b>mris_inflate</b> <span class="opt">-n</span> 1000 <span class="opt">-no-save-sulc</span> ?h.smoothwm.nofix ?h.inflated.nofix
+<span class="tag fs">FS</span><b>mris_sphere</b> <span class="opt">-q -seed</span> 1234 ?h.inflated.nofix ?h.qsphere.nofix</td>
+        <td class="io"><span>?h.smoothwm.nofix</span><span>?h.inflated.nofix</span><span>?h.qsphere.nofix</span></td>
+      </tr>
+      <tr>
+        <td class="step">fix topology</td>
+        <td class="io"><span>?h.qsphere.nofix</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mris_fix_topology</b> <span class="opt">-mgz -sphere</span> qsphere.nofix <span class="opt">-ga -seed</span> 1234 &lt;subj&gt; ?h
+<span class="tag fs">FS</span><b>mris_euler_number</b> ?h.orig
+<span class="tag fs">FS</span><b>mris_remove_intersection</b> ?h.orig ?h.orig</td>
+        <td class="io"><span>?h.orig</span></td>
+      </tr>
+      <tr>
+        <td class="step">white / pial</td>
+        <td class="io"><span>?h.brain.finalsurfs</span><span>?h.orig, min_gray (opt)</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mris_make_surfaces</b> <span class="opt">-noaseg -noaparc -mgz</span> [<span class="opt">-min_gray_at_csf_border</span> ${min_gray}] <span class="opt">-T1</span> ?h.brain.finalsurfs &lt;subj&gt; ?h</td>
+        <td class="io"><span>?h.white, ?h.pial</span><span>?h.curv, ?h.area, ?h.thickness</span></td>
+      </tr>
+      <tr>
+        <td class="step">smooth2 / inflate2 / curv</td>
+        <td class="io"><span>?h.white</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mris_smooth</b> <span class="opt">-n</span> 3 <span class="opt">-nw -seed</span> 1234 ?h.white ?h.smoothwm
+<span class="tag fs">FS</span><b>mris_inflate</b> <span class="opt">-dist</span> .01 <span class="opt">-f</span> .001 <span class="opt">-n</span> ${infla} ?h.smoothwm ?h.inflated
+<span class="tag fs">FS</span><b>mris_curvature</b> <span class="opt">-thresh</span> .999 <span class="opt">-n -a</span> 5 <span class="opt">-w -distances</span> 10 10 ?h.inflated
+<span class="tag fs">FS</span><b>mris_curvature_stats</b> <span class="opt">-m --writeCurvatureFiles -G -o</span> ?h.curv.stats <span class="opt">-F</span> smoothwm &lt;subj&gt; ?h curv sulc</td>
+        <td class="io"><span>?h.smoothwm, ?h.inflated</span><span>?h.inflated.H/K</span><span>?h.curv.stats</span></td>
+      </tr>
+      <tr>
+        <td class="step">sphere / metrics / midthickness</td>
+        <td class="io"><span>?h.inflated</span><span>?h.area(.pial), ?h.thickness</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mris_sphere</b> ?h.inflated ?h.sphere
+<span class="tag fs">FS</span><b>mris_calc</b> <span class="opt">-o</span> ?h.area.mid ?h.area add ?h.area.pial  · div 2  · <span class="opt">-o</span> ?h.volume ?h.area.mid mul ?h.thickness
+<span class="tag fs">FS</span><b>mris_expand</b> <span class="opt">-thickness</span> ?h.white 0.5 ?h.graymid
+<span class="tag fs">FS</span><b>mris_convert</b> <span class="opt">--to-scanner</span> ?h.&lt;surf&gt; ?h.&lt;surf&gt;.surf.gii ; <span class="tag fs">FS</span><b>mris_convert</b> ?h.sphere ?h.sphere.surf.gii
+<span class="tag wb">WB</span><b>wb_command</b> <span class="opt">-surface-average</span> ?h.midthickness.surf.gii <span class="opt">-surf</span> ?h.white.surf.gii <span class="opt">-surf</span> ?h.pial.surf.gii</td>
+        <td class="io"><span>?h.sphere</span><span>?h.area.mid, ?h.volume</span><span>?h.graymid, *.surf.gii</span><span>?h.midthickness.surf.gii</span></td>
+      </tr>
+
+      <!-- cortex_labelgen -->
+      <tr class="sub-band"><td colspan="4">cortex_labelgen.sh &nbsp;— ribbon &rarr; cortex/subcortex labels &rarr; annotation<span class="loc">bin/cortex_labelgen.sh</span></td></tr>
+      <tr>
+        <td class="step">orient probe</td>
+        <td class="io"><span>brain.mgz</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mri_info</b> brain.mgz <span class="muted">→ determinant, Orientation</span>
+<span class="tag fs">FS</span><b>mri_convert</b> mri/brain.mgz mri/aseg.mgz <span class="opt">--out_orientation</span> ${work_orient}</td>
+        <td class="io"><span>reoriented aseg.mgz</span></td>
+      </tr>
+      <tr>
+        <td class="step">ribbon</td>
+        <td class="io"><span>&lt;subj&gt; surfaces</span><span>sub_cort</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mris_volmask</b> <span class="opt">--save_ribbon</span> ${subj}
+<span class="tag fs">FS</span><b>mri_convert</b> mri/ribbon.mgz mri/ribbon.nii.gz [<span class="opt">--out_orientation</span> …]
+<span class="tag fsl">FSL</span><b>fslmaths</b> ribbon <span class="opt">-bin -sub</span> sub_cort <span class="opt">-bin</span> ?h.ribbon  (or <span class="opt">-mas / -uthr 21 / -thr 21</span> split)</td>
+        <td class="io"><span>ribbon.mgz/.nii.gz</span><span>?h.ribbon.nii.gz</span></td>
+      </tr>
+      <tr>
+        <td class="step">vol&rarr;surf labels</td>
+        <td class="io"><span>?h.ribbon</span><span>brain.mgz</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mri_vol2label</b> <span class="opt">--i</span> ?h.ribbon <span class="opt">--id</span> 1 <span class="opt">--v</span> ?h.ribbon <span class="opt">--l</span> ?h.cort.label
+<span class="tag fs">FS</span><b>mri_label2vol</b> <span class="opt">--label</span> ?h.cort.label <span class="opt">--temp</span> brain.mgz <span class="opt">--o</span> ?h.cort_vol.mgz <span class="opt">--identity</span>
+<span class="tag fs">FS</span><b>mri_vol2surf</b> <span class="opt">--mov</span> ?h.cort_vol.mgz <span class="opt">--ref</span> brain.mgz <span class="opt">--hemi</span> ?h <span class="opt">--o</span> ?h.cort_srf.mgh <span class="opt">--regheader</span> ${subj}
+<span class="tag fs">FS</span><b>mri_vol2label</b> <span class="opt">--i</span> ?h.cort_srf.mgh <span class="opt">--id</span> 1|0 <span class="opt">--surf</span> ${subj} ?h <span class="opt">--l</span> label/?h.cortex|subcortex</td>
+        <td class="io"><span>label/?h.cortex</span><span>label/?h.subcortex</span></td>
+      </tr>
+      <tr>
+        <td class="step">annotate</td>
+        <td class="io"><span>?h.cortex.label</span><span>cort.annot.ctab</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mris_label2annot</b> <span class="opt">--s</span> ${subj} <span class="opt">--h</span> ?h <span class="opt">--ctab</span> standards/cort.annot.ctab <span class="opt">--l</span> ?h.Unknown.label <span class="opt">--l</span> ?h.cortex.label <span class="opt">--surf</span> white <span class="opt">--a</span> Cortex</td>
+        <td class="io"><span>?h.Cortex.annot</span></td>
+      </tr>
+
+      <!-- ribbon at driver level -->
+      <tr class="sub-band"><td colspan="4">driver &nbsp;— whole-brain ribbon (fake aseg = brain.mgz)<span class="loc">bin/surfing_safari.sh</span></td></tr>
+      <tr>
+        <td class="step">cortribbon</td>
+        <td class="io"><span>?h.white, ?h.pial</span><span>aseg.mgz (=brain.mgz)</span></td>
+        <td class="cmd"><span class="muted">cp brain.mgz aseg.mgz</span>
+<span class="tag fs">FS</span><b>mris_volmask</b> <span class="opt">--save_ribbon</span> $(basename ${brain_dir})</td>
+        <td class="io"><span>ribbon.mgz</span></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================ PRECON_4 ============================ -->
+<section class="module">
+  <div class="band">
+    <span class="mtitle">surfing_safari.sh -r precon_4</span>
+    <span class="mdesc">Downsample native surfaces to an icosphere in HCP space. <code>-v &lt;nverts&gt;</code> mandatory. Also runs at the end of precon_2/3 when <code>-v</code> is given.</span>
+  </div>
+  <table>
+    <thead><tr>
+      <th class="c-step">Step / flag</th><th class="c-in">Input</th><th class="c-cmd">Command line</th><th class="c-out">Output</th>
+    </tr></thead>
+    <tbody>
+      <tr class="sub-band"><td colspan="4">down_surf.sh &nbsp;(per hemi)<span class="loc">bin/down_surf.sh</span></td></tr>
+      <tr>
+        <td class="step">build sphere</td>
+        <td class="io"><span>${verts}</span></td>
+        <td class="cmd"><span class="tag wb">WB</span><b>wb_command</b> <span class="opt">-surface-create-sphere</span> ${verts} ?h.sphere_${rd}.surf.gii
+<span class="tag wb">WB</span><b>wb_command</b> <span class="opt">-surface-flip-lr</span> ?h.sphere_${rd}.surf.gii ?h.sphere_${rd}.flip.surf.gii
+<span class="tag wb">WB</span><b>wb_command</b> <span class="opt">-set-structure</span> ?h.sphere_${rd}.surf.gii CORTEX_LEFT|CORTEX_RIGHT</td>
+        <td class="io"><span>?h.sphere_${rd}.surf.gii</span></td>
+      </tr>
+      <tr>
+        <td class="step">resample</td>
+        <td class="io"><span>?h.&lt;srf&gt;.surf.gii</span><span>?h.sphere.surf.gii</span></td>
+        <td class="cmd"><span class="tag wb">WB</span><b>wb_command</b> <span class="opt">-surface-resample</span> ?h.&lt;srf&gt;.surf.gii ?h.sphere.surf.gii ?h.sphere_${rd}.surf.gii BARYCENTRIC ?h.&lt;srf&gt;.surf.gii</td>
+        <td class="io"><span>downsampled ?h.&lt;srf&gt;.surf.gii</span></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================ PRECON_ART ============================ -->
+<section class="module">
+  <div class="band">
+    <span class="mtitle">surfing_safari.sh -r precon_art</span>
+    <span class="mdesc">Visualization-only: STL export incl. cerebellum / non-cortical structures. Run after precon_2. Not for statistics.</span>
+  </div>
+  <table>
+    <thead><tr>
+      <th class="c-step">Step / flag</th><th class="c-in">Input</th><th class="c-cmd">Command line</th><th class="c-out">Output</th>
+    </tr></thead>
+    <tbody>
+      <tr class="sub-band"><td colspan="4">art.sh<span class="loc">bin/art.sh</span></td></tr>
+      <tr>
+        <td class="step">cerebellar masks</td>
+        <td class="io"><span>non_cort, seg_pve_1</span><span>wm_orig, hem masks</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>imcp</b> seg/seg_pve_1 mri/gray  ·  <span class="tag fsl">FSL</span><b>flirt</b> <span class="opt">-applyisoxfm</span> ${dimNC} → mri/gray
+<span class="tag fsl">FSL</span><b>fslmaths</b> build cb_gray / cb_white, L/R split (<span class="opt">-thr -bin -mas -add</span>)</td>
+        <td class="io"><span>{L,R}_cb_{gray,white}</span></td>
+      </tr>
+      <tr>
+        <td class="step">tessellate + smooth</td>
+        <td class="io"><span>{L,R}_cb_{gray,white}.nii.gz</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mri_tessellate</b> {L,R}_cb_{gray,white} 1 ?h.cb_{gray,white}
+<span class="tag fs">FS</span><b>mris_extract_main_component</b> ${i} ${i}
+<span class="tag fs">FS</span><b>mris_smooth</b> <span class="opt">-nw -n</span> 3|6 ${i} ${i}</td>
+        <td class="io"><span>?h.cb_{gray,white}</span></td>
+      </tr>
+      <tr>
+        <td class="step">export STL</td>
+        <td class="io"><span>?h.{pial,white}.art.gii</span><span>?h.cb_{gray,white}.gii</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mris_convert</b> ${i} ${i}.gii  ·  ${i} ${i}.stl
+<span class="tag fs">FS</span><b>mris_convert</b> <span class="opt">--combinesurfs</span> ?h.{pial|white}.art.gii ?h.cb_{gray|white}.gii ?h.{full|Wfull}.stl</td>
+        <td class="io"><span>?h.full.stl</span><span>?h.Wfull.stl</span></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================ UTILS ============================ -->
+<section class="module">
+  <div class="band">
+    <span class="mtitle">utils/ &amp; group_scripts/</span>
+    <span class="mdesc">Standalone helpers &amp; group/template tools — not part of the single-subject <code>surfing_safari.sh</code> flow.</span>
+  </div>
+  <table>
+    <thead><tr>
+      <th class="c-step">Script</th><th class="c-in">Purpose</th><th class="c-cmd">Key command line(s)</th><th class="c-out">Output</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td class="step">register_surfaces.sh</td>
+        <td class="io"><span>subject surfaces</span><span>template .tif</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mris_euler_number</b> …
+<span class="tag fs">FS</span><b>mris_register</b> [<span class="opt">-norot</span>][<span class="opt">-reverse</span>] ?h.sphere &lt;template&gt; ?h.&lt;regname&gt;
+<span class="tag fs">FS</span><b>mri_surf2surf</b> <span class="opt">--srcsubject --trgsubject --hemi --surfreg --sval --tval --sfmt/--tfmt</span> curv
+<span class="tag fs">FS</span><b>mri_label2label</b> <span class="opt">--regmethod</span> surface <span class="opt">--srcsurfreg/--trgsurfreg</span></td>
+        <td class="io"><span>?h.&lt;regname&gt;</span><span>resampled metrics/labels</span></td>
+      </tr>
+      <tr>
+        <td class="step">make_surftemp.sh<br>average_surface_maker.sh</td>
+        <td class="io"><span>cohort of subjects</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mris_make_template</b> [<span class="opt">-norot</span>] ?h sphere.reg &lt;subjs&gt; ?h.tif
+<span class="tag fs">FS</span><b>mris_make_average_surface</b> <span class="opt">-nonorm -i -o -sdir-out</span>
+<span class="tag fs">FS</span><b>mris_preproc</b> <span class="opt">--out --f --target --hemi --meas --srcsurfreg</span>
+<span class="tag fs">FS</span><b>mri_concat</b> <span class="opt">--mean/--std</span> · <b>mri_surf2surf</b> · <b>mri_add_xform_to_header</b> <span class="opt">-c auto</span> · <b>mri_average</b> <span class="opt">-noconform</span></td>
+        <td class="io"><span>?h.template.tif</span><span>group average surfaces / maps</span></td>
+      </tr>
+      <tr>
+        <td class="step">consensus_label.sh<br>calc_label_dice.sh</td>
+        <td class="io"><span>curvature / labels</span></td>
+        <td class="cmd"><span class="tag fs">FS</span><b>mri_binarize</b> <span class="opt">--i --match</span> 0 [<span class="opt">--inv</span>] <span class="opt">--o</span>
+<span class="tag fs">FS</span><b>mri_cor2label</b> <span class="opt">--i --surf</span> &lt;subj&gt; ?h &lt;surf&gt; <span class="opt">--id</span> 1 <span class="opt">--l</span>
+<span class="tag fs">FS</span><b>mris_compute_parc_overlap</b> <span class="opt">--s --hemi --label1 --label2</span> <span class="muted">(Dice)</span></td>
+        <td class="io"><span>consensus labels</span><span>Dice score</span></td>
+      </tr>
+      <tr>
+        <td class="step">intensity_afni_unifize.sh<br>IntensityNormalizeHeadImage.sh</td>
+        <td class="io"><span>head / brain image</span></td>
+        <td class="cmd"><span class="tag afni">AFNI</span><b>3dUnifize</b> [<span class="opt">-overwrite</span>] <span class="opt">-input</span> &lt;in&gt; <span class="opt">-prefix</span> &lt;out&gt; [<span class="opt">-ssave</span> scale]
+<span class="tag fsl">FSL</span><b>fslmaths</b> <span class="opt">-mas / -div / -mul</span> … ; <span class="tag ants">ANTS</span><b>antsRegistrationSyN.sh</b> (re-register after unifize)</td>
+        <td class="io"><span>unifized image</span></td>
+      </tr>
+      <tr>
+        <td class="step">manual_bet_fix.sh<br>register_brain_extracted_volume.sh</td>
+        <td class="io"><span>manually fixed mask</span><span>template</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>flirt</b> <span class="opt">-searchr* -omat</span> manual_fix.mat  ·  <span class="tag fs">FS</span><b>lta_convert</b> <span class="opt">--infsl … --outitk</span>
+<span class="tag ants">ANTS</span><b>ConvertTransformFile</b> <span class="opt">--convertToAffineType</span>  ·  <span class="tag fsl">FSL</span><b>fnirt</b> / <span class="tag ants">ANTS</span><b>antsRegistrationSyN.sh</b> <span class="opt">-i</span> init</td>
+        <td class="io"><span>corrected str2std / std2str warps</span></td>
+      </tr>
+      <tr>
+        <td class="step">ants_to_fsl_warp.sh</td>
+        <td class="io"><span>ANTs warp + affine</span><span>REF, MOVING</span></td>
+        <td class="cmd"><span class="tag ants">ANTS</span><b>ImageMath</b> 3 warp_{x,y,z} ExtractVectorComponent &lt;warp&gt; 0|1|2
+<span class="tag fsl">FSL</span><b>fslmaths</b> <span class="opt">-mul</span> -1 (flip y[,x]) · <b>fslmerge</b> <span class="opt">-t</span> ants_warp_fsl
+<span class="tag ants">ANTS</span><b>ConvertTransformFile</b> 3 &lt;affine&gt; ants_affine_ras.mat <span class="opt">--hm --ras</span>
+<span class="tag fs">FS</span><b>lta_convert</b> <span class="opt">--initk … --outfsl</span> · <span class="tag fsl">FSL</span><b>convertwarp</b> <span class="opt">--premat --warp1 --rel --out</span> · <b>invwarp</b> · <b>applywarp</b></td>
+        <td class="io"><span>str2std_warp.nii.gz</span><span>std2str_warp.nii.gz</span><span>FSL(Inverse)Warped</span></td>
+      </tr>
+      <tr>
+        <td class="step">wm_regional_dual_threshold.sh</td>
+        <td class="io"><span>std region mask</span><span>wm_seg, rawavg mask</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>applywarp</b> <span class="opt">--interp=</span>nn std_region_mask → native  ·  <span class="tag fsl">FSL</span><b>fslmaths</b> <span class="opt">-dilM / -sub / -mas / -thr / -bin</span> dual-threshold WM → wm_hand_edit</td>
+        <td class="io"><span>mri/wm_hand_edit</span></td>
+      </tr>
+      <tr>
+        <td class="step">bedpostdir2faket1.sh</td>
+        <td class="io"><span>completed bedpostX dir</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>fslmaths</b> mean_f1samples <span class="opt">-sqr</span> f1_sqr · mean_f2samples <span class="opt">-sqr</span> f2_sqr · f1_sqr <span class="opt">-add</span> f2_sqr <span class="opt">-sqrt</span> ${prefix}</td>
+        <td class="io"><span>fake-T1 (anisotropy)</span></td>
+      </tr>
+      <tr>
+        <td class="step">pet_sounds.sh</td>
+        <td class="io"><span>PET/aux image + ref</span></td>
+        <td class="cmd"><span class="tag fsl">FSL</span><b>flirt</b> <span class="opt">-dof</span> 12 <span class="opt">-searchr*</span> -180 180 <span class="opt">-omat</span> talairach.mat  ·  <span class="tag fs">FS</span><b>lta_convert</b> <span class="opt">--infsl … --outlta / --outmni</span></td>
+        <td class="io"><span>talairach.{mat,lta,xfm}</span></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<div class="foot">
+  <p><strong>QC (out-of-band):</strong> <code>bin/precon_qc.sh</code> drives <span class="tag fsl" style="font-size:10px">FSL</span> <code>fsleyes render</code> (lightbox &amp; 3D scenes: <code>--scene</code>, <code>--zaxis</code>, <code>--numSlices</code>, <code>--overlayType volume|mask|mesh</code>, <code>--outline --outlineWidth</code>) plus ImageMagick <code>montage</code> for tiling. Not a reconstruction step.</p>
+  <p><strong>Notes.</strong> <span class="tag ants" style="font-size:10px">ANTS</span> <code>Atropos</code> runs inside the <code>antsAtroposN4.sh</code> wrapper (the bare word elsewhere is echoed help text). <code>antsApplyTransforms</code> appears only in a commented validation example in <code>ants_to_fsl_warp.sh</code>. <code>bedpostx</code> / <code>probtrackx</code> / <code>run_first_all</code> are referenced conceptually but never invoked. The <code>precon_alldockerfile</code> installs FreeSurfer 6+, FSL 6+, ANTs 2.3.5+, Workbench 1.5.0+ but issues no processing calls.</p>
+  <p class="muted">Generated from a static read of the repo at <code>github.com/neurabenn/precon_all</code>. Command lines are condensed for the table; see the per-step source file/line for the verbatim invocation and full option strings.</p>
+</div>
+
+</div>
+</body>
+</html>
