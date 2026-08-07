@@ -469,7 +469,7 @@
     <tbody>
       <tr>
         <td class="step">register_surfaces.sh</td>
-        <td class="io"><span>subject surfaces</span><span>template .tif</span></td>
+        <td class="io"><span>Register either one precon_all subject to another or to a defined template space</span><span>template .tif</span></td>
         <td class="cmd"><span class="tag fs">FS</span><b>mris_euler_number</b> …
 <span class="tag fs">FS</span><b>mris_register</b> [<span class="opt">-norot</span>][<span class="opt">-reverse</span>] ?h.sphere &lt;template&gt; ?h.&lt;regname&gt;
 <span class="tag fs">FS</span><b>mri_surf2surf</b> <span class="opt">--srcsubject --trgsubject --hemi --surfreg --sval --tval --sfmt/--tfmt</span> curv
@@ -478,7 +478,7 @@
       </tr>
       <tr>
         <td class="step">make_surftemp.sh<br>average_surface_maker.sh</td>
-        <td class="io"><span>cohort of subjects</span></td>
+        <td class="io"><span>Scripts called by pet_sounds.sh to make surface templat eand average subject</span></td>
         <td class="cmd"><span class="tag fs">FS</span><b>mris_make_template</b> [<span class="opt">-norot</span>] ?h sphere.reg &lt;subjs&gt; ?h.tif
 <span class="tag fs">FS</span><b>mris_make_average_surface</b> <span class="opt">-nonorm -i -o -sdir-out</span>
 <span class="tag fs">FS</span><b>mris_preproc</b> <span class="opt">--out --f --target --hemi --meas --srcsurfreg</span>
@@ -487,7 +487,7 @@
       </tr>
       <tr>
         <td class="step">consensus_label.sh<br>calc_label_dice.sh</td>
-        <td class="io"><span>curvature / labels</span></td>
+        <td class="io"><span>Check labels are ok and make consensus label for template space</span></td>
         <td class="cmd"><span class="tag fs">FS</span><b>mri_binarize</b> <span class="opt">--i --match</span> 0 [<span class="opt">--inv</span>] <span class="opt">--o</span>
 <span class="tag fs">FS</span><b>mri_cor2label</b> <span class="opt">--i --surf</span> &lt;subj&gt; ?h &lt;surf&gt; <span class="opt">--id</span> 1 <span class="opt">--l</span>
 <span class="tag fs">FS</span><b>mris_compute_parc_overlap</b> <span class="opt">--s --hemi --label1 --label2</span> <span class="muted">(Dice)</span></td>
@@ -495,21 +495,21 @@
       </tr>
       <tr>
         <td class="step">intensity_afni_unifize.sh<br>IntensityNormalizeHeadImage.sh</td>
-        <td class="io"><span>head / brain image</span></td>
+        <td class="io"><span>Use AFNI's 3dUnifize script for intensity normalizatoin on a precon_all directory.</span></td>
         <td class="cmd"><span class="tag afni">AFNI</span><b>3dUnifize</b> [<span class="opt">-overwrite</span>] <span class="opt">-input</span> &lt;in&gt; <span class="opt">-prefix</span> &lt;out&gt; [<span class="opt">-ssave</span> scale]
 <span class="tag fsl">FSL</span><b>fslmaths</b> <span class="opt">-mas / -div / -mul</span> … ; <span class="tag ants">ANTS</span><b>antsRegistrationSyN.sh</b> (re-register after unifize)</td>
         <td class="io"><span>unifized image</span></td>
       </tr>
       <tr>
         <td class="step">manual_bet_fix.sh<br>register_brain_extracted_volume.sh</td>
-        <td class="io"><span>manually fixed mask</span><span>template</span></td>
+        <td class="io"><span>Use manual brian extractoin mask and update registrations</span><span>template</span></td>
         <td class="cmd"><span class="tag fsl">FSL</span><b>flirt</b> <span class="opt">-searchr* -omat</span> manual_fix.mat  ·  <span class="tag fs">FS</span><b>lta_convert</b> <span class="opt">--infsl … --outitk</span>
 <span class="tag ants">ANTS</span><b>ConvertTransformFile</b> <span class="opt">--convertToAffineType</span>  ·  <span class="tag fsl">FSL</span><b>fnirt</b> / <span class="tag ants">ANTS</span><b>antsRegistrationSyN.sh</b> <span class="opt">-i</span> init</td>
         <td class="io"><span>corrected str2std / std2str warps</span></td>
       </tr>
       <tr>
         <td class="step">ants_to_fsl_warp.sh</td>
-        <td class="io"><span>ANTs warp + affine</span><span>REF, MOVING</span></td>
+        <td class="io"><span>Convert ANTs warps to FSL compatible warps</span><span>REF, MOVING</span></td>
         <td class="cmd"><span class="tag ants">ANTS</span><b>ImageMath</b> 3 warp_{x,y,z} ExtractVectorComponent &lt;warp&gt; 0|1|2
 <span class="tag fsl">FSL</span><b>fslmaths</b> <span class="opt">-mul</span> -1 (flip y[,x]) · <b>fslmerge</b> <span class="opt">-t</span> ants_warp_fsl
 <span class="tag ants">ANTS</span><b>ConvertTransformFile</b> 3 &lt;affine&gt; ants_affine_ras.mat <span class="opt">--hm --ras</span>
@@ -518,19 +518,19 @@
       </tr>
       <tr>
         <td class="step">wm_regional_dual_threshold.sh</td>
-        <td class="io"><span>std region mask</span><span>wm_seg, rawavg mask</span></td>
+        <td class="io"><span>Update the white matter segmentatino with distinct regional threshold in problem areas</span><span>wm_seg, rawavg mask</span></td>
         <td class="cmd"><span class="tag fsl">FSL</span><b>applywarp</b> <span class="opt">--interp=</span>nn std_region_mask → native  ·  <span class="tag fsl">FSL</span><b>fslmaths</b> <span class="opt">-dilM / -sub / -mas / -thr / -bin</span> dual-threshold WM → wm_hand_edit</td>
         <td class="io"><span>mri/wm_hand_edit</span></td>
       </tr>
       <tr>
-        <td class="step">bedpostdir2faket1.sh</td>
-        <td class="io"><span>completed bedpostX dir</span></td>
+        <td class="step">bedpostdir2pseudoT1.sh</td>
+        <td class="io"><span>Create a pseudo-T1 image from a bedpostX output directory</span></td>
         <td class="cmd"><span class="tag fsl">FSL</span><b>fslmaths</b> mean_f1samples <span class="opt">-sqr</span> f1_sqr · mean_f2samples <span class="opt">-sqr</span> f2_sqr · f1_sqr <span class="opt">-add</span> f2_sqr <span class="opt">-sqrt</span> ${prefix}</td>
         <td class="io"><span>fake-T1 (anisotropy)</span></td>
       </tr>
       <tr>
         <td class="step">pet_sounds.sh</td>
-        <td class="io"><span>PET/aux image + ref</span></td>
+        <td class="io"><span>Create a surface template and average subject space. Inputs: reference precon_all directory; list of processed precon_all directories</span></td>
         <td class="cmd"><span class="tag fsl">FSL</span><b>flirt</b> <span class="opt">-dof</span> 12 <span class="opt">-searchr*</span> -180 180 <span class="opt">-omat</span> talairach.mat  ·  <span class="tag fs">FS</span><b>lta_convert</b> <span class="opt">--infsl … --outlta / --outmni</span></td>
         <td class="io"><span>talairach.{mat,lta,xfm}</span></td>
       </tr>
@@ -541,7 +541,7 @@
 <div class="foot">
   <p><strong>QC (out-of-band):</strong> <code>bin/precon_qc.sh</code> drives <span class="tag fsl" style="font-size:10px">FSL</span> <code>fsleyes render</code> (lightbox &amp; 3D scenes: <code>--scene</code>, <code>--zaxis</code>, <code>--numSlices</code>, <code>--overlayType volume|mask|mesh</code>, <code>--outline --outlineWidth</code>) plus ImageMagick <code>montage</code> for tiling. Not a reconstruction step.</p>
   <p><strong>Notes.</strong> <span class="tag ants" style="font-size:10px">ANTS</span> <code>Atropos</code> runs inside the <code>antsAtroposN4.sh</code> wrapper (the bare word elsewhere is echoed help text). <code>antsApplyTransforms</code> appears only in a commented validation example in <code>ants_to_fsl_warp.sh</code>. <code>bedpostx</code> / <code>probtrackx</code> / <code>run_first_all</code> are referenced conceptually but never invoked. The <code>precon_alldockerfile</code> installs FreeSurfer 6+, FSL 6+, ANTs 2.3.5+, Workbench 1.5.0+ but issues no processing calls.</p>
-  <p class="muted">Generated from a static read of the repo at <code>github.com/neurabenn/precon_all</code>. Command lines are condensed for the table; see the per-step source file/line for the verbatim invocation and full option strings.</p>
+  <p class="muted">Initially generated from a static read of the repo at <code>github.com/neurabenn/precon_all</code>. Checked and edited where needed by R. Austin Benn.</p>
 </div>
 
 </div>
