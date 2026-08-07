@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>precon_all — Preclinical Cortical Surface Reconstruction</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#6b6b6b; --line:#d9d6cf; --line2:#eceae4;
+    --paper:#fbfaf7; --band:#2f3b30; --bandink:#f3f1ea;
+    --cmd:#f4f2ec; --cmdink:#232323;
+    --fs:#2d6a4f; --fsl:#1d4e89; --ants:#9a3412; --afni:#6b21a8; --wb:#a16207;
+    --stepbg:#efeee8;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:40px 22px 90px}
+  header.masthead{border-bottom:3px double var(--ink); padding-bottom:18px; margin-bottom:26px}
+  h1{font-size:30px; margin:0 0 4px; letter-spacing:-.01em}
+  h1 .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:26px}
+  .sub{color:var(--muted); font-size:15px; margin:0}
+  .lede{font-size:15px; max-width:78ch; margin:16px 0 0}
+  .lede code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; background:var(--cmd); padding:1px 5px; border-radius:3px}
+  a{color:var(--fsl); text-decoration:none; border-bottom:1px solid rgba(29,78,137,.3)}
+  a:hover{border-bottom-color:rgba(29,78,137,.7)}
+
+  .legend{display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center;
+    margin:22px 0 8px; padding:12px 14px; background:#fff; border:1px solid var(--line); border-radius:6px}
+  .legend .ll{font-size:12.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-right:4px}
+  .tag{display:inline-block; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px;
+    font-weight:700; letter-spacing:.03em; color:#fff; padding:2px 7px; border-radius:4px; vertical-align:middle}
+  .tag.fs{background:var(--fs)} .tag.fsl{background:var(--fsl)} .tag.ants{background:var(--ants)}
+  .tag.afni{background:var(--afni)} .tag.wb{background:var(--wb)}
+  .note{font-size:13px; color:var(--muted); margin:6px 2px 0}
+
+  .module{margin-top:40px}
+  .band{background:var(--band); color:var(--bandink); padding:11px 16px; border-radius:6px 6px 0 0;
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:14px; font-weight:700; letter-spacing:.01em;
+    display:flex; flex-wrap:wrap; gap:6px 14px; align-items:baseline}
+  .band .mtitle{font-size:15px}
+  .band .mdesc{font-family:"Iowan Old Style",Georgia,serif; font-weight:400; font-size:13px; color:#c8d3c4}
+
+  .panel{background:#fff; border:1px solid var(--line); border-top:none; border-radius:0 0 6px 6px; padding:16px 18px}
+  .panel p{font-size:13.5px; margin:0 0 10px}
+  .panel p:last-child{margin-bottom:0}
+  .panel ul, .panel ol{margin:0 0 10px; padding-left:20px; font-size:13.5px}
+  .panel li{margin-bottom:4px}
+  .panel li:last-child{margin-bottom:0}
+  .panel code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; background:var(--cmd); padding:1px 5px; border-radius:3px}
+  .panel .cmd{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:12.5px; color:var(--cmdink);
+    background:var(--cmd); padding:10px 12px; border-radius:4px; white-space:pre-wrap; word-break:break-word; line-height:1.6}
+
+  table{width:100%; border-collapse:collapse; background:#fff; font-size:13.5px}
+  thead th{background:var(--stepbg); color:#333; text-align:left; font-weight:700; font-size:11.5px;
+    text-transform:uppercase; letter-spacing:.07em; padding:8px 12px; border-bottom:2px solid var(--line)}
+  tbody td{padding:9px 12px; border-bottom:1px solid var(--line2); vertical-align:top}
+  tbody tr:hover{background:#fcfbf8}
+  .step{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; color:#333; font-weight:600}
+  .io{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px; color:#3a3a3a; line-height:1.55}
+
+  .devtable-cta{margin-top:0}
+  .devtable-cta .panel a.ctitle{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:15px; font-weight:700; border-bottom:none; color:var(--ink)}
+  .devtable-cta .panel a.ctitle:hover{color:var(--fsl)}
+
+  .foot{margin-top:46px; padding-top:16px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+  .foot code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px}
+
+  @media (max-width:760px){
+    .wrap{padding:24px 12px 60px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <h1><span class="mono">precon_all</span></h1>
+  <p class="sub">Preclinical / animal cortical surface reconstruction &nbsp;·&nbsp; driver: <span style="font-family:ui-monospace,Menlo,monospace">surfing_safari.sh</span></p>
+  <p class="lede">An animal surface generation pipeline, adaptable to multiple species. Modeled on FreeSurfer's <code>recon-all</code>, mixing FreeSurfer, FSL, ANTs, AFNI, and Connectome Workbench under the hood. The example used throughout is the pig, as it's what the pipeline has been used for the most. Source: <a href="https://github.com/neurabenn/precon_all">github.com/neurabenn/precon_all</a>.</p>
+
+  <div class="legend">
+    <span class="ll">Toolkit</span>
+    <span><span class="tag fs">FS</span> FreeSurfer</span>
+    <span><span class="tag fsl">FSL</span> FSL</span>
+    <span><span class="tag ants">ANTS</span> ANTs</span>
+    <span><span class="tag afni">AFNI</span> AFNI</span>
+    <span><span class="tag wb">WB</span> Workbench</span>
+  </div>
+</header>
+
+<section class="module">
+  <div class="band">
+    <span class="mtitle">Setup</span>
+    <span class="mdesc">Clone the repo and point $PCP_PATH at it</span>
+  </div>
+  <div class="panel">
+    <p>Clone the repository, then set an environment variable pointing to it: <code>$PCP_PATH</code>.</p>
+  </div>
+</section>
+
+<section class="module">
+  <div class="band">
+    <span class="mtitle">Run &mdash; single subject, new species</span>
+    <span class="mdesc">Build five masks, drop them in a masks/ folder</span>
+  </div>
+  <div class="panel">
+    <p>Create five masks:</p>
+    <ol>
+      <li>Brain mask &mdash; <code>brain_mask.nii.gz</code></li>
+      <li>Left hemisphere mask &mdash; <code>left_hem.nii.gz</code></li>
+      <li>Right hemisphere mask &mdash; <code>right_hem.nii.gz</code></li>
+      <li>Subcortical mask, covering the corpus callosum, everything beneath it, and the ventricles &mdash; the area filled in by the medial wall &mdash; <code>sub_cort.nii.gz</code></li>
+      <li>Non-cortical mask, covering everything to exclude from the final surface &mdash; <code>non_cort.nii.gz</code></li>
+    </ol>
+    <p>Place all five in a folder named <code>masks</code> in the working directory alongside your image, then run:</p>
+    <div class="cmd">surfing_safari.sh <span style="color:#7a5">-i</span> &lt;my_T1.nii.gz&gt; <span style="color:#7a5">-r</span> precon_all <span style="color:#7a5">-a</span> masks</div>
+  </div>
+</section>
+
+<section class="module">
+  <div class="band">
+    <span class="mtitle">Run &mdash; high-throughput, standard template</span>
+    <span class="mdesc">Per-animal standards/ directory for repeated runs</span>
+  </div>
+  <div class="panel">
+    <p>Create a new directory per animal at <code>$PCP_PATH/standards/&lt;your_animal&gt;</code>, containing:</p>
+    <ul>
+      <li><code>extraction/</code> &mdash; <code>&lt;animal&gt;_temp.nii.gz</code>, <code>brain_mask.nii.gz</code>, <code>&lt;animal&gt;_brain.nii.gz</code></li>
+      <li><code>fill/</code> &mdash; <code>left_hem.nii.gz</code>, <code>right_hem.nii.gz</code>, <code>sub_cort.nii.gz</code>, <code>non_cort.nii.gz</code></li>
+      <li><code>seg_priors/</code> (optional) &mdash; <code>csf.nii.gz</code>, <code>gm.nii.gz</code>, <code>wm.nii.gz</code>. Recommended when available; the pipeline runs without them but may need more manual intervention posthoc.</li>
+    </ul>
+    <p>Then run:</p>
+    <div class="cmd">surfing_safari.sh <span style="color:#7a5">-i</span> &lt;my_T1.nii.gz&gt; <span style="color:#7a5">-r</span> precon_all <span style="color:#7a5">-a</span> &lt;your_animal&gt;</div>
+  </div>
+</section>
+
+<section class="module">
+  <div class="band">
+    <span class="mtitle">Correcting white &amp; pial surfaces</span>
+    <span class="mdesc">Standard FreeSurfer-style hand edits, as a NIfTI</span>
+  </div>
+  <div class="panel">
+    <p>precon_all is built on FreeSurfer. To edit a surface, edit <code>wm.nii.gz</code> and save it in the subject's <code>/mri/</code> folder as <code>wm_hand_edit.nii.gz</code> &mdash; the same process used to <a href="https://surfer.nmr.mgh.harvard.edu/fswiki/FsTutorial/PialEditsV6.0">correct pial surfaces</a> in human FreeSurfer, except the file needs to be a NIfTI.</p>
+  </div>
+</section>
+
+<section class="module">
+  <div class="band">
+    <span class="mtitle">Other options</span>
+    <span class="mdesc">Flags for surfing_safari.sh</span>
+  </div>
+  <table>
+    <thead><tr><th style="width:18%">Flag</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td class="step">-a &lt;animal&gt;</td><td class="io">Animal model &mdash; must be the name of a folder in <code>$PCP_PATH/standards/</code>, e.g. <code>$PCP_PATH/standards/pig</code></td></tr>
+      <tr><td class="step">-n</td><td class="io">No brain extraction &mdash; use a previously extracted brain; only runs linear transforms</td></tr>
+      <tr><td class="step">-e</td><td class="io">Brain extraction with ANTs instead of FNIRT, using template space</td></tr>
+      <tr><td class="step">-v &lt;res&gt;</td><td class="io">Downsample individual surfaces to a given resolution in HCP space</td></tr>
+      <tr><td class="step">-t &lt;thresh&gt;</td><td class="io">Segmentation threshold. Default 0.5 for FAST, 0.1 for ANTs</td></tr>
+      <tr><td class="step">-s</td><td class="io">Segment with ANTs AtroposN4 instead of FAST. Default threshold 0.1</td></tr>
+      <tr><td class="step">-g</td><td class="io">Optional, default none. Percentile within the gray matter mask at which to place the pial boundary &mdash; should only be used in precon_3 refinement</td></tr>
+      <tr><td class="step">-L</td><td class="io">Left hemisphere only</td></tr>
+      <tr><td class="step">-R</td><td class="io">Right hemisphere only</td></tr>
+      <tr><td class="step">-h</td><td class="io">Help</td></tr>
+    </tbody>
+  </table>
+  <div class="panel" style="border-top:none; border-radius:0 0 6px 6px">
+    <p>Compulsory: <code>-i &lt;T1 image&gt;</code> image to reconstruct the surface from, and <code>-r &lt;process&gt;</code> which process to run (<code>precon_all</code>, <code>precon_1</code>, <code>precon_2</code>, <code>precon_3</code>, <code>precon_art</code>).</p>
+    <p style="margin-bottom:0">Example: <code>surfing_safari.sh -i &lt;T1.nii.gz&gt; -r precon_all -a pig</code></p>
+  </div>
+</section>
+
+<section class="module">
+  <div class="band">
+    <span class="mtitle">Modules</span>
+    <span class="mdesc">-r precon_1 … precon_art</span>
+  </div>
+  <table>
+    <thead><tr><th style="width:18%">Module</th><th>Scope</th></tr></thead>
+    <tbody>
+      <tr><td class="step">precon_all</td><td class="io">Reconstructs the cortical surface from a single whole-head image</td></tr>
+      <tr><td class="step">precon_1</td><td class="io">Brain extraction only</td></tr>
+      <tr><td class="step">precon_2</td><td class="io">Denoising, segmentation, WM fill, surface generation</td></tr>
+      <tr><td class="step">precon_3</td><td class="io">WM filling and surface generation only</td></tr>
+      <tr><td class="step">precon_4</td><td class="io">Downsamples the output of a previous run (<code>-v</code> mandatory)</td></tr>
+      <tr><td class="step">precon_art</td><td class="io">Visualization / figures only, includes the non_cort mask. Run only after precon_2. Not meant to give any statistics or information on the surface &mdash; visualization purposes only.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="module">
+  <div class="band">
+    <span class="mtitle">Installation</span>
+    <span class="mdesc">FreeSurfer 6+ · FSL 6+ · ANTs 2.3.5+ · Workbench 1.5.0+</span>
+  </div>
+  <div class="panel">
+    <p>Requires FreeSurfer 6+, FSL 6+, ANTs 2.3.5+, and Connectome Workbench 1.5.0+, each installed per its own instructions and available on your bash profile. Clone the repo and point <code>$PCP_PATH</code> at it.</p>
+  </div>
+</section>
+
+<section class="module">
+  <div class="band">
+    <span class="mtitle">Docker</span>
+    <span class="mdesc">Prebuilt image on Docker Hub, or build locally</span>
+  </div>
+  <div class="panel">
+    <p>Pull the prebuilt image &mdash; <code>docker pull neurabenn/precon_all:latest</code> (Apple Silicon / other arm64: add <code>--platform=linux/amd64</code>). The image does not include a FreeSurfer license; mount your own <code>fs_license.txt</code> at runtime. If pulling doesn't work, build locally from <code>precon_alldockerfile</code>. Also runnable on HPC clusters via Singularity.</p>
+  </div>
+</section>
+
+<section class="module">
+  <div class="band">
+    <span class="mtitle">Runtime</span>
+    <span class="mdesc">Typical: 2&ndash;5 hours per subject</span>
+  </div>
+  <div class="panel">
+    <p>Most species finish in 2&ndash;5 hours; highly gyrified or very large brains can take longer. Because parcellation isn't run and segmentation is limited to gray/white/CSF, kill the process if it exceeds 18 hours.</p>
+  </div>
+</section>
+
+<section class="module devtable-cta">
+  <div class="band">
+    <span class="mtitle">Documentation</span>
+    <span class="mdesc">Full command-level reference</span>
+  </div>
+  <div class="panel">
+    <a class="ctitle" href="precon_all_devtable.html">precon_all Dev Table &rarr;</a>
+    <p style="margin-top:6px">Module-by-module command reference &mdash; every step, input, output, and exact command line, with source file and line noted for each.</p>
+  </div>
+</section>
+
+<div class="foot">
+  <p><span class="muted">Maintained by R. Austin Benn.</span></p>
+</div>
+
+</div>
+</body>
+</html>
