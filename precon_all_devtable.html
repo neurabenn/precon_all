@@ -46,12 +46,12 @@
   .band .mtitle{font-size:15px}
   .band .mdesc{font-family:"Iowan Old Style",Georgia,serif; font-weight:400; font-size:13px; color:#c8d3c4}
 
-  table{width:100%; border-collapse:collapse; background:#fff; font-size:13.5px}
+  table{width:100%; border-collapse:collapse; background:#fff; font-size:13.5px; table-layout:fixed}
   thead th{background:var(--stepbg); color:#333; text-align:left; font-weight:700; font-size:11.5px;
     text-transform:uppercase; letter-spacing:.07em; padding:8px 12px; border-bottom:2px solid var(--line);
     position:sticky; top:0; z-index:2}
-  th.c-step{width:15%} th.c-in{width:22%} th.c-cmd{width:44%} th.c-out{width:19%}
-  tbody td{padding:9px 12px; border-bottom:1px solid var(--line2); vertical-align:top}
+  th.c-step{width:15%} th.c-in{width:22%} th.c-purpose{width:22%} th.c-cmd{width:44%} th.c-out{width:19%}
+  tbody td{padding:9px 12px; border-bottom:1px solid var(--line2); vertical-align:top; overflow-wrap:break-word}
   tbody tr:hover{background:#fcfbf8}
   .sub-band td{background:#f6f5f0; border-bottom:1px solid var(--line);
     font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; font-weight:700; color:#444; letter-spacing:.02em}
@@ -59,6 +59,10 @@
   .step{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; color:#333; font-weight:600}
   .io{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px; color:#3a3a3a; line-height:1.55}
   .io span{display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  /* Purpose column (utils table): wraps normally instead of clipping, same width as c-in */
+  .purpose{font-family:"Iowan Old Style",Georgia,serif; font-size:12.5px; color:#3a3a3a; line-height:1.5}
+  .purpose span{display:block; white-space:normal; overflow:visible; text-overflow:clip; word-break:break-word}
+  .purpose span+span{margin-top:4px}
   .cmd{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:11.5px; color:var(--cmdink);
     line-height:1.55; white-space:pre-wrap; word-break:break-word}
   .cmd b{font-weight:700}
@@ -70,6 +74,7 @@
   @media (max-width:760px){
     th.c-in,td.c-in{display:none}
     th.c-step{width:26%} th.c-cmd{width:52%} th.c-out{width:22%}
+    th.c-purpose{width:30%}
     .wrap{padding:24px 12px 60px}
   }
 </style>
@@ -464,12 +469,12 @@
   </div>
   <table>
     <thead><tr>
-      <th class="c-step">Script</th><th class="c-in">Purpose</th><th class="c-cmd">Key command line(s)</th><th class="c-out">Output</th>
+      <th class="c-step">Script</th><th class="c-purpose">Purpose</th><th class="c-cmd">Key command line(s)</th><th class="c-out">Output</th>
     </tr></thead>
     <tbody>
       <tr>
         <td class="step">register_surfaces.sh</td>
-        <td class="io"><span>Register either one precon_all subject to another or to a defined template space</span><span>template .tif</span></td>
+        <td class="purpose"><span>Register either one precon_all subject to another or to a defined template space</span><span>template .tif</span></td>
         <td class="cmd"><span class="tag fs">FS</span><b>mris_euler_number</b> …
 <span class="tag fs">FS</span><b>mris_register</b> [<span class="opt">-norot</span>][<span class="opt">-reverse</span>] ?h.sphere &lt;template&gt; ?h.&lt;regname&gt;
 <span class="tag fs">FS</span><b>mri_surf2surf</b> <span class="opt">--srcsubject --trgsubject --hemi --surfreg --sval --tval --sfmt/--tfmt</span> curv
@@ -478,7 +483,7 @@
       </tr>
       <tr>
         <td class="step">make_surftemp.sh<br>average_surface_maker.sh</td>
-        <td class="io"><span>Scripts called by pet_sounds.sh to make surface templat eand average subject</span></td>
+        <td class="purpose"><span>Scripts called by pet_sounds.sh to make surface template and average subject</span></td>
         <td class="cmd"><span class="tag fs">FS</span><b>mris_make_template</b> [<span class="opt">-norot</span>] ?h sphere.reg &lt;subjs&gt; ?h.tif
 <span class="tag fs">FS</span><b>mris_make_average_surface</b> <span class="opt">-nonorm -i -o -sdir-out</span>
 <span class="tag fs">FS</span><b>mris_preproc</b> <span class="opt">--out --f --target --hemi --meas --srcsurfreg</span>
@@ -487,7 +492,7 @@
       </tr>
       <tr>
         <td class="step">consensus_label.sh<br>calc_label_dice.sh</td>
-        <td class="io"><span>Check labels are ok and make consensus label for template space</span></td>
+        <td class="purpose"><span>Check labels are ok and make consensus label for template space</span></td>
         <td class="cmd"><span class="tag fs">FS</span><b>mri_binarize</b> <span class="opt">--i --match</span> 0 [<span class="opt">--inv</span>] <span class="opt">--o</span>
 <span class="tag fs">FS</span><b>mri_cor2label</b> <span class="opt">--i --surf</span> &lt;subj&gt; ?h &lt;surf&gt; <span class="opt">--id</span> 1 <span class="opt">--l</span>
 <span class="tag fs">FS</span><b>mris_compute_parc_overlap</b> <span class="opt">--s --hemi --label1 --label2</span> <span class="muted">(Dice)</span></td>
@@ -495,21 +500,21 @@
       </tr>
       <tr>
         <td class="step">intensity_afni_unifize.sh<br>IntensityNormalizeHeadImage.sh</td>
-        <td class="io"><span>Use AFNI's 3dUnifize script for intensity normalizatoin on a precon_all directory.</span></td>
+        <td class="purpose"><span>Use AFNI's 3dUnifize script for intensity normalization on a precon_all directory.</span></td>
         <td class="cmd"><span class="tag afni">AFNI</span><b>3dUnifize</b> [<span class="opt">-overwrite</span>] <span class="opt">-input</span> &lt;in&gt; <span class="opt">-prefix</span> &lt;out&gt; [<span class="opt">-ssave</span> scale]
 <span class="tag fsl">FSL</span><b>fslmaths</b> <span class="opt">-mas / -div / -mul</span> … ; <span class="tag ants">ANTS</span><b>antsRegistrationSyN.sh</b> (re-register after unifize)</td>
         <td class="io"><span>unifized image</span></td>
       </tr>
       <tr>
         <td class="step">manual_bet_fix.sh<br>register_brain_extracted_volume.sh</td>
-        <td class="io"><span>Use manual brian extractoin mask and update registrations</span><span>template</span></td>
+        <td class="purpose"><span>Use manual brain extraction mask and update registrations</span><span>template</span></td>
         <td class="cmd"><span class="tag fsl">FSL</span><b>flirt</b> <span class="opt">-searchr* -omat</span> manual_fix.mat  ·  <span class="tag fs">FS</span><b>lta_convert</b> <span class="opt">--infsl … --outitk</span>
 <span class="tag ants">ANTS</span><b>ConvertTransformFile</b> <span class="opt">--convertToAffineType</span>  ·  <span class="tag fsl">FSL</span><b>fnirt</b> / <span class="tag ants">ANTS</span><b>antsRegistrationSyN.sh</b> <span class="opt">-i</span> init</td>
         <td class="io"><span>corrected str2std / std2str warps</span></td>
       </tr>
       <tr>
         <td class="step">ants_to_fsl_warp.sh</td>
-        <td class="io"><span>Convert ANTs warps to FSL compatible warps</span><span>REF, MOVING</span></td>
+        <td class="purpose"><span>Convert ANTs warps to FSL compatible warps</span><span>REF, MOVING</span></td>
         <td class="cmd"><span class="tag ants">ANTS</span><b>ImageMath</b> 3 warp_{x,y,z} ExtractVectorComponent &lt;warp&gt; 0|1|2
 <span class="tag fsl">FSL</span><b>fslmaths</b> <span class="opt">-mul</span> -1 (flip y[,x]) · <b>fslmerge</b> <span class="opt">-t</span> ants_warp_fsl
 <span class="tag ants">ANTS</span><b>ConvertTransformFile</b> 3 &lt;affine&gt; ants_affine_ras.mat <span class="opt">--hm --ras</span>
@@ -518,19 +523,19 @@
       </tr>
       <tr>
         <td class="step">wm_regional_dual_threshold.sh</td>
-        <td class="io"><span>Update the white matter segmentatino with distinct regional threshold in problem areas</span><span>wm_seg, rawavg mask</span></td>
+        <td class="purpose"><span>Update the white matter segmentation with distinct regional threshold in problem areas</span><span>wm_seg, rawavg mask</span></td>
         <td class="cmd"><span class="tag fsl">FSL</span><b>applywarp</b> <span class="opt">--interp=</span>nn std_region_mask → native  ·  <span class="tag fsl">FSL</span><b>fslmaths</b> <span class="opt">-dilM / -sub / -mas / -thr / -bin</span> dual-threshold WM → wm_hand_edit</td>
         <td class="io"><span>mri/wm_hand_edit</span></td>
       </tr>
       <tr>
         <td class="step">bedpostdir2pseudoT1.sh</td>
-        <td class="io"><span>Create a pseudo-T1 image from a bedpostX output directory</span></td>
+        <td class="purpose"><span>Create a pseudo-T1 image from a bedpostX output directory</span></td>
         <td class="cmd"><span class="tag fsl">FSL</span><b>fslmaths</b> mean_f1samples <span class="opt">-sqr</span> f1_sqr · mean_f2samples <span class="opt">-sqr</span> f2_sqr · f1_sqr <span class="opt">-add</span> f2_sqr <span class="opt">-sqrt</span> ${prefix}</td>
         <td class="io"><span>fake-T1 (anisotropy)</span></td>
       </tr>
       <tr>
         <td class="step">pet_sounds.sh</td>
-        <td class="io"><span>Create a surface template and average subject space. <br> Inputs: reference precon_all directory; list of processed precon_all directories</span></td>
+        <td class="purpose"><span>Create a surface template and average subject space. Inputs: reference precon_all directory; list of processed precon_all directories</span></td>
         <td class="cmd"><span class="tag fsl">FSL</span><b>flirt</b> <span class="opt">-dof</span> 12 <span class="opt">-searchr*</span> -180 180 <span class="opt">-omat</span> talairach.mat  ·  <span class="tag fs">FS</span><b>lta_convert</b> <span class="opt">--infsl … --outlta / --outmni</span></td>
         <td class="io"><span>talairach.{mat,lta,xfm}</span></td>
       </tr>
