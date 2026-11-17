@@ -149,3 +149,6 @@ Users should still provide their own FreeSurfer license when running the contain
 # Runtime
 Precon_all runs on most species within 2-5 hours. However if using a highly gyrified or very large brain it can take longer. 
 Because it does not run parcellation steps and only segments by gray, white, and csf, you should kill the process if it goes over 18 hours. 
+
+# Example data
+Precon_all ships with standards which include the Pig PNI50 template and the NMT V1.2 Macaque template (Siedlitz et. al doi:10.1016/j.neuroimage.2017.04.063). To run an example simply copy the whole head image from either species template space to a working directory and run precon_all on the image. To save time use the brain extracted image with the -n flag. 
